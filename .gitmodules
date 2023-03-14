@@ -1,0 +1,6 @@
+[submodule "thirdparty/stuff"]
+	path = thirdparty/stuff
+	url = git@github.com:xor-shift/stuff.git
+[submodule "thirdparty/sfml"]
+	path = thirdparty/sfml
+	url = https://github.com/SFML/SFML
