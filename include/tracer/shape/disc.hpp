@@ -28,8 +28,14 @@ struct disc {
 
     constexpr auto normal_at(vec3 pt) const -> vec3 { return normal; }
 
+    constexpr auto surface_area() const -> real {
+        return std::numbers::pi_v<real> * radius * radius;
+    }
+
 private:
     constexpr auto get_surface_basis() const -> std::pair<vec3, vec3>;
+
+    constexpr void get_surface_information(vec3 r_p, vec2& uv, vec3& dpdu, vec3& dpdv) const;
 };
 
 static_assert(concepts::bound_shape<disc>);

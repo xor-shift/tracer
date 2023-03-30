@@ -1,13 +1,15 @@
 #pragma once
 
-#include <stuff/core.hpp>
 #include <stuff/blas.hpp>
+#include <stuff/core.hpp>
 
 namespace trc {
 
 using namespace stf::integers;
 
 using real = double;
+
+static constexpr real epsilon = 0.0001;
 
 using bvec2 = stf::blas::vector<bool, 2>;
 using bvec3 = stf::blas::vector<bool, 3>;
@@ -25,4 +27,12 @@ using mat4x4 = stf::blas::matrix<real, 4, 4>;
 
 using color = vec3;
 
-}
+using default_rng = stf::random::xoshiro_256p;
+
+}// namespace trc
+
+#define VARIANT_CALL(_obj, _name, ...) \
+    std::visit([&]<typename T>(T&& v) { return std::forward<T>(v)._name(__VA_ARGS__); }, _obj)
+
+#define VARIANT_MEMBER(_obj, _name) \
+    std::visit([&]<typename T>(T&& v) { return std::forward<T>(v)._name; }, _obj)

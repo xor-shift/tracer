@@ -27,15 +27,19 @@ if (NOT TARGET stuff_qoi)
     add_subdirectory(thirdparty/stuff/libs/qoi ${CMAKE_CURRENT_BINARY_DIR}/libs/qoi)
 endif ()
 
+if (NOT TARGET stuff_thread)
+    add_subdirectory(thirdparty/stuff/libs/thread ${CMAKE_CURRENT_BINARY_DIR}/libs/thread)
+endif ()
+
 add_subdirectory(thirdparty/sfml)
 
 add_executable(tracer main.cpp)
 target_link_libraries(tracer
         SFML::System SFML::Window SFML::Graphics
-        stuff_core stuff_blas stuff_random stuff_ranvec stuff_qoi)
+        stuff_core stuff_blas stuff_random stuff_ranvec stuff_qoi stuff_thread)
 target_include_directories(tracer PRIVATE include)
 
-if (CMAKE_BUILD_TYPE STREQUAL "Debug")
+if (CMAKE_BUILD_TYPE STREQUAL "Debug" OR CMAKE_BUILD_TYPE STREQUAL "RelWithDebInfo")
     target_compile_options(${PROJECT_NAME} PUBLIC -fsanitize=address -fsanitize=undefined)
     target_link_options(${PROJECT_NAME} PUBLIC -fsanitize=address -fsanitize=undefined)
 elseif(CMAKE_BUILD_TYPE STREQUAL "Release" OR CMAKE_BUILD_TYPE STREQUAL "RelWithDebInfo")

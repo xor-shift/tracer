@@ -1,6 +1,7 @@
 #pragma once
 
 #include <stuff/ranvec.hpp>
+#include <stuff/expected.hpp>
 #include <tracer/intersection.hpp>
 #include <tracer/ray.hpp>
 
@@ -26,8 +27,14 @@ struct sphere {
 
     constexpr auto normal_at(vec3 pt) const -> vec3;
 
+    constexpr auto surface_area() const -> real {
+        return 4 * std::numbers::pi_v<real> * radius;
+    }
+
 private:
     constexpr auto intersect_impl(ray const& ray) const -> std::optional<real>;
+
+    constexpr void get_surface_information(vec3 local_pt, vec2& uv, vec3& dpdu, vec3& dpdv) const;
 };
 
 static_assert(concepts::bound_shape<sphere>);

@@ -10,48 +10,40 @@ constexpr auto sphere::intersect(ray const& ray) const -> std::optional<intersec
 
     vec3 isection_point = ray.origin + t * ray.direction;
     vec3 normal = normal_at(isection_point);
+    vec3 local_pt = isection_point - center_point;
 
-    real u = real(0.5) - std::atan2(normal[0], normal[2]) * real(0.5) * std::numbers::inv_pi_v<real>;
-    real v = real(0.5) - std::asin(normal[1] / radius) * std::numbers::inv_pi_v<real>;
+    vec2 uv;
+    vec3 dpdu;
+    vec3 dpdv;
 
-    intersection ret{
-      .isection_point = isection_point,
-      .uv = vec2(u, v),
+    get_surface_information(local_pt, uv, dpdu, dpdv);
 
-      .wo = -ray.direction,
-      .t = t,
+    vec3 wo = -ray.direction;
 
-      .normal = normal,
-      .material_index = material_index,
-    };
+    intersection ret(material_index, wo, t, isection_point, uv, {dpdu, dpdv});
 
     return ret;
 }
 
 template<typename Gen>
 constexpr auto sphere::sample_surface(Gen& gen) const -> intersection {
-    vec3 isection_point = center_point + stf::random::sphere_sampler<2>::sample(gen) * radius;
+    vec3 isection_point = center_point + stf::random::sphere_sampler<2>::sample<real>(gen) * radius;
     vec3 normal = normal_at(isection_point);
+    vec3 local_pt = isection_point - center_point;
 
-    real u = real(0.5) - std::atan2(normal[0], normal[2]) * real(0.5) * std::numbers::inv_pi_v<real>;
-    real v = real(0.5) - std::asin(normal[1] / radius) * std::numbers::inv_pi_v<real>;
+    vec2 uv;
+    vec3 dpdu;
+    vec3 dpdv;
 
-    intersection ret{
-      .isection_point = isection_point,
-      .uv = vec2(u, v),
+    get_surface_information(local_pt, uv, dpdu, dpdv);
 
-      .wo = vec3(0),
-      //.t = 0,
-
-      .normal = normal,
-      .material_index = material_index,
-    };
+    intersection ret(material_index, vec3(), 0, isection_point, uv, {dpdu, dpdv});
 
     return ret;
 }
 
 constexpr auto sphere::normal_at(vec3 pt) const -> vec3 {
-    return pt - center_point;
+    return (pt - center_point) / radius;
 }
 
 constexpr auto sphere::intersect_impl(ray const& ray) const -> std::optional<real> {
@@ -72,6 +64,38 @@ constexpr auto sphere::intersect_impl(ray const& ray) const -> std::optional<rea
     real t = t_0 < 0 ? t_1 : std::min(t_0, t_1);
 
     return t;
+}
+
+constexpr void sphere::get_surface_information(vec3 local_pt, vec2& uv, vec3& dpdu, vec3& dpdv) const {
+    real theta_min = std::acos(-1);
+    real theta_max = std::acos(1);
+
+    real phi = std::atan2(local_pt[1], local_pt[0]);
+    if (phi < 0) phi += 2 * std::numbers::pi_v<real>;
+    real theta = std::acos(std::clamp<real>(local_pt[2] / radius, -1, 1));
+
+    real u = phi * real(0.5) * std::numbers::inv_pi_v<real>;
+    real v = (theta - theta_min) / (theta_max - theta_min);
+
+    //real u = real(0.5) - std::atan2(normal[0], normal[2]) * real(0.5) * std::numbers::inv_pi_v<real>;
+    //real v = real(0.5) - std::asin(normal[1] / radius) * std::numbers::inv_pi_v<real>;
+
+    real dx_du = -2 * std::numbers::pi_v<real> * local_pt[1];
+    real dy_du = 2 * std::numbers::pi_v<real> * local_pt[0];
+    real dz_du = 0;
+
+    real z_r = std::sqrt(local_pt[0] * local_pt[0] + local_pt[1] * local_pt[1]);
+    real inv_z_r = 1 / z_r;
+    real cos_phi = local_pt[0] * inv_z_r;
+    real sin_phi = local_pt[1] * inv_z_r;
+
+    real dx_dv = local_pt[2] * cos_phi;
+    real dy_dv = local_pt[2] * sin_phi;
+    real dz_dv = -radius * std::sin(theta);
+
+    dpdu = vec3{dx_du, dy_du, dz_du};
+    dpdv = (theta_max - theta_min) * vec3{dx_dv, dy_dv, dz_dv};
+    uv = vec2{u, v};
 }
 
 }// namespace trc::shapes

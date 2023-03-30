@@ -15,18 +15,11 @@ constexpr auto plane::intersect(ray const& ray) const -> std::optional<intersect
     vec3 ortho_v = cross(normal, ortho_u);
     vec2 uv(dot(ortho_u, isection_point), dot(ortho_v, isection_point));
 
-    intersection intersection{
-      .isection_point = isection_point,
-      .uv = uv,
+    vec3 wo = -ray.direction;
 
-      .wo = -ray.direction,
-      .t = t,
+    intersection ret(material_index, wo, t, isection_point, uv, {ortho_u, ortho_v});
 
-      .normal = normal,
-      .material_index = material_index,
-    };
-
-    return intersection;
+    return ret;
 }
 
 constexpr auto plane::intersects(ray const& ray) const -> bool {
