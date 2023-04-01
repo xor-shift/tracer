@@ -39,6 +39,8 @@ struct box {
 
     constexpr auto normal_at(vec3 pt) const -> vec3;
 
+    constexpr auto uv_at(vec3 pt) const -> vec2;
+
     constexpr auto surface_area() const -> real;
 
     constexpr auto material_index() const -> u32 { return m_mat_idx; }

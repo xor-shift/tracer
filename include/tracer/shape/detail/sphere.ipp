@@ -9,7 +9,6 @@ constexpr auto sphere::intersect(ray const& ray) const -> std::optional<intersec
         return std::nullopt;
 
     vec3 isection_point = ray.origin + t * ray.direction;
-    vec3 normal = normal_at(isection_point);
     vec3 local_pt = isection_point - m_center;
 
     vec2 uv;

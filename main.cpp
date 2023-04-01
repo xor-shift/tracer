@@ -123,7 +123,7 @@ constexpr auto get_scene_test() -> scene {
       shapes::disc(midx_green_light, {0, 2.2499, 7.5}, {0, -1, 0}, 0.71),
       shapes::disc(midx_blue_light, {2, 2.2499, 7.5}, {0, -1, 0}, 0.71),*/
 
-      shapes::box(midx_magdonal, {{-2.5, -2.25, 5}, {-0.5, -1.25, 7}}),
+      //shapes::box(midx_magdonal, {{-2.5, -2.25, 5}, {-0.5, -1.25, 7}}),
     };
 
     scene scene(std::move(shapes), std::move(materials));
@@ -133,7 +133,7 @@ constexpr auto get_scene_test() -> scene {
 
 int main() {
 #ifdef NDEBUG
-    usize samples = 1024;
+    usize samples = 64;
     usize width = 800;
     usize height = 600;
 #else

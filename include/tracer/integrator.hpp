@@ -47,6 +47,12 @@ struct default_task_generator {
     constexpr default_task_generator(std::pair<usize, usize> chunk_size) noexcept
         : m_chunk_size(chunk_size) {}
 
+    constexpr default_task_generator(default_task_generator const& other)
+        : m_chunk_size(other.m_chunk_size)
+        , m_image(other.m_image)
+        , m_x_tasks(other.m_x_tasks)
+        , m_y_tasks(other.m_y_tasks) {}
+
     constexpr void set_image(image_view image) {
         m_image = image;
         m_x_tasks = image.width() / m_chunk_size.first + (image.width() % m_chunk_size.first != 0);
@@ -55,6 +61,19 @@ struct default_task_generator {
 
     constexpr auto n_tasks() const -> usize {
         return m_x_tasks * m_y_tasks;
+    }
+
+    constexpr void reset() {
+        m_next_task.store(0, std::memory_order::seq_cst);
+    }
+
+    constexpr auto next_task() -> std::optional<payload_type> {
+        usize task_no = m_next_task.fetch_add(1, std::memory_order::seq_cst);
+        if (task_no >= n_tasks()) {
+            return std::nullopt;
+        }
+
+        return (*this)(task_no);
     }
 
     constexpr auto operator()(usize task) const -> payload_type {
@@ -71,16 +90,131 @@ struct default_task_generator {
     }
 
 private:
-    std::pair<usize, usize> m_chunk_size{16, 16};
+    std::pair<usize, usize> m_chunk_size{32, 32};
 
     image_view m_image{};
     usize m_x_tasks = 0;
     usize m_y_tasks = 0;
+
+    std::atomic_size_t m_next_task = 0;
+};
+
+struct c4d_task_generator {
+    using payload_type = default_task;
+
+    constexpr c4d_task_generator() = default;
+
+    constexpr c4d_task_generator(std::pair<usize, usize> chunk_size) noexcept
+        : m_chunk_size(chunk_size) {}
+
+    constexpr c4d_task_generator(c4d_task_generator const& other)
+        : m_chunk_size(other.m_chunk_size)
+        , m_image(other.m_image)
+        , m_x_tasks(other.m_x_tasks)
+        , m_y_tasks(other.m_y_tasks) {}
+
+    constexpr void set_image(image_view image) {
+        m_image = image;
+        m_x_tasks = image.width() / m_chunk_size.first + (image.width() % m_chunk_size.first != 0);
+        m_y_tasks = image.height() / m_chunk_size.second + (image.height() % m_chunk_size.second != 0);
+    }
+
+    constexpr void reset() {}
+
+    auto next_task() -> std::optional<payload_type> {
+        isize half_x = m_x_tasks / 2;
+        isize half_y = m_y_tasks / 2;
+
+        std::unique_lock lock{m_task_gen_mutex};
+
+        constexpr std::pair<isize, isize> dir_offsets[] {
+          {1, 0},
+          {0, -1},
+          {-1, 0},
+          {0, 1},
+        };
+
+        usize x_task;
+        usize y_task;
+
+        for (;;) {
+            const auto [off_x, off_y] = dir_offsets[static_cast<int>(m_direction)];
+            const auto current_offset = m_next_offset;
+            m_next_offset.first += off_x;
+            m_next_offset.second += off_y;
+
+            advance();
+
+            isize x_task_t = current_offset.first + half_x;
+            isize y_task_t = current_offset.second + half_y;
+
+            bool x_oob = x_task_t < 0 || x_task_t >= m_x_tasks;
+            bool y_oob = y_task_t < 0 || y_task_t >= m_y_tasks;
+
+            if (x_oob && y_oob) {
+                return std::nullopt;
+            }
+
+            if (x_oob || y_oob) {
+                continue;
+            }
+
+            x_task = static_cast<usize>(x_task_t);
+            y_task = static_cast<usize>(y_task_t);
+            break;
+        }
+
+        usize start_col = x_task * m_chunk_size.first;
+        usize start_row = y_task * m_chunk_size.second;
+
+        image_view image(m_image, start_col, start_row, m_chunk_size.first, m_chunk_size.second);
+
+        return default_task{
+          .xy_start{start_col, start_row},
+          .chunk = image,
+          .image = m_image,
+        };
+    }
+
+private:
+    std::pair<usize, usize> m_chunk_size{32, 32};
+
+    image_view m_image{};
+    isize m_x_tasks = 0;
+    isize m_y_tasks = 0;
+
+    enum class direction : int {
+        east = 0,
+        north = 1,
+        west = 2,
+        south = 3,
+    };
+
+    constexpr void advance() {
+        if (++m_step_counter == m_steps) {
+            m_step_counter = 0;
+            m_direction = static_cast<direction>((static_cast<int>(m_direction) + 1) % 4);
+
+            if (m_odd_direction_change) {
+                m_steps++;
+            }
+
+            m_odd_direction_change ^= true;
+        }
+    }
+
+    mutable std::mutex m_task_gen_mutex{};
+    bool m_odd_direction_change = false;
+    usize m_step_counter = 0;
+    usize m_steps = 1;
+    direction m_direction = direction::east;
+
+    std::pair<isize, isize> m_next_offset{0, 0};
 };
 
 }// namespace detail
 
-template<typename TaskGenerator = detail::default_task_generator>
+template<typename TaskGenerator = detail::c4d_task_generator>
 struct task_integrator : integrator {
     using task_generator_type = TaskGenerator;
     using task_payload_type = typename TaskGenerator::payload_type;
@@ -104,9 +238,19 @@ struct task_integrator : integrator {
 #endif
         }
 
+        auto consume_task = [this, opts, &gen] constexpr {
+            auto task_opt = m_task_generator.next_task();
+            if (!task_opt)
+                return false;
+
+            task_processor(*task_opt, opts, gen);
+            return true;
+        };
+
         if (n_threads <= 1) {
-            for (usize n_tasks = m_task_generator.n_tasks(), i = 0; i < n_tasks; i++) {
-                this->task_processor(m_task_generator(i), opts, gen);
+            for (;;) {
+                if (!consume_task())
+                    break;
             }
 
             return;
@@ -115,11 +259,14 @@ struct task_integrator : integrator {
         stf::wait_group wg{};
         std::vector<std::thread> workers{};
 
-        auto worker = [this, &wg, out, opts](usize thread_id, usize stride, default_rng gen) {
+        m_task_generator.reset();
+
+        auto worker = [this, consume_task, &wg, out, opts](usize thread_id, usize stride, default_rng gen) {
             stf::scope::scope_exit wg_guard{[&wg] { wg.done(); }};
 
-            for (usize n_tasks = m_task_generator.n_tasks(), i = thread_id; i < n_tasks; i += stride) {
-                task_processor(m_task_generator(i), opts, gen);
+            for (;;) {
+                if (!consume_task())
+                    break;
             }
         };
 
@@ -194,7 +341,7 @@ protected:
         constexpr real base_rr_prob = 0.05;
 
         color attenuation(1);
-        color light {};
+        color light{};
 
         for (usize depth = 0;; depth++) {
             auto isect_res = m_scene->intersect(ray);
@@ -216,7 +363,7 @@ protected:
             attenuation = cur_attenuation * attenuation;
 
             if (const auto abs_attenuation = abs(attenuation); depth > depth_threshold && abs_attenuation < 0.2) {
-                stf::random::erand48_distribution<real> dist {};
+                stf::random::erand48_distribution<real> dist{};
                 real rr_gen = dist(gen);
 
                 // probability to continue

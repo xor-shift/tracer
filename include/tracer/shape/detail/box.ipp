@@ -21,6 +21,22 @@ constexpr auto box::intersect(ray const& ray) const -> std::optional<intersectio
     if (t < 0)
         return std::nullopt;
 
+    vec3 global_pt = ray.origin + ray.direction * t;
+
+    vec2 uv = uv_at(global_pt);
+    vec3 normal = normal_at(global_pt);
+
+    std::pair<vec3, vec3> dp_duv = detail::get_dummy_dp_duv(normal);
+
+    return intersection(m_mat_idx, -ray.direction, t, global_pt, uv, dp_duv);
+}
+
+template<typename Gen>
+constexpr auto box::sample_surface(Gen& gen) const -> intersection {
+    // TODO: this function is trash
+    // translation: this function is really quite inefficient on top of not being uniform for stretched boxes.
+    // this also feels like a very weird of sampling a box...
+
     /// Shirley's low-distortion mapping from a square to a disc in the other direction.
     /// \param p A sample from the 2-unit square centered around the origin.
     constexpr auto uv_to_xy = [](vec2 uv) constexpr->vec2 {
@@ -41,29 +57,27 @@ constexpr auto box::intersect(ray const& ray) const -> std::optional<intersectio
         return {k * x, k * y};
     };
 
-    vec3 global_p = ray.origin + ray.direction * t;
-    vec3 local_p = (global_p - center()) * 2;
-    vec3 unit_p = local_p / (side_lengths() / 2);
-    vec3 local_p_dir = normalize(unit_p);
+    stf::random::erand48_distribution<real> dist{};
 
-    vec2 uv;
-    std::tie(uv, std::ignore) = detail::get_sphere_uv(local_p_dir, 1, {std::acos(-1), std::acos(1)});
+    real angle = 2 * std::numbers::pi_v<real> * dist(gen);
+    vec3 uniform_sample(uv_to_xy({std::cos(angle), std::sin(angle)}), dist(gen) * 2 - 1);
+
+    int axis = static_cast<int>(std::trunc(dist(gen) * 3));
+    std::swap(uniform_sample[axis], uniform_sample[(axis + 1) % 3]);
+
+    vec3 global_p = uniform_sample * (side_lengths() / 2);
 
     vec3 normal = normal_at(global_p);
 
     std::pair<vec3, vec3> dp_duv = detail::get_dummy_dp_duv(normal);
 
-    return intersection(m_mat_idx, -ray.direction, t, global_p, uv, dp_duv);
+    vec2 uv = uv_at(global_p);
+
+    return intersection(m_mat_idx, vec3{}, 0, global_p, uv, dp_duv);
 }
 
-template<typename Gen>
-constexpr auto box::sample_surface(Gen& gen) const -> intersection {
-
-    return {};
-}
-
-constexpr auto box::normal_at(vec3 global_p) const -> vec3 {
-    vec3 c = global_p - center();
+constexpr auto box::normal_at(vec3 global_pt) const -> vec3 {
+    vec3 c = global_pt - center();
     vec3 d = (m_extents.first - m_extents.second) / 2;
 
     vec3 t = c * (epsilon + 1) / elem_abs(d);
@@ -73,6 +87,17 @@ constexpr auto box::normal_at(vec3 global_p) const -> vec3 {
     assert_normal(res);
 
     return res;
+}
+
+constexpr auto box::uv_at(vec3 global_pt) const -> vec2 {
+    vec3 local_p = (global_pt - center()) * 2;
+    vec3 unit_p = local_p / (side_lengths() / 2);
+    vec3 local_p_dir = normalize(unit_p);
+
+    vec2 uv;
+    std::tie(uv, std::ignore) = detail::get_sphere_uv(local_p_dir, 1, {std::acos(-1), std::acos(1)});
+
+    return uv;
 }
 
 constexpr auto box::surface_area() const -> real {
