@@ -37,6 +37,10 @@ struct intersection {
         st.first = normalize(dpduv.first);
         normal = normalize(cross(dpduv.first, dpduv.second));
         st.second = cross(normal, st.first);
+
+        assert_orthogonal(dpduv.first, dpduv.second);
+        assert_orthogonal(dpduv.first, normal);
+        assert_normal(normal);
     }
 
     constexpr auto vector_to_refl_space(vec3 vec) const -> vec3 {

@@ -58,7 +58,7 @@ struct scene {
 
         do {
             ret = m_bound_shapes[dist(gen)];
-        } while (!VARIANT_CALL(m_materials[VARIANT_MEMBER(ret, material_index)], is_light));
+        } while (!VARIANT_CALL(m_materials[VARIANT_CALL(ret, material_index)], is_light));
 
         return ret;
     }
@@ -89,8 +89,6 @@ private:
 
     std::vector<bound_shape> m_bound_shapes{};
     std::vector<unbound_shape> m_unbound_shapes{};
-
-    static constexpr shapes::sphere s_stub_shape{};
 };
 
 }// namespace trc

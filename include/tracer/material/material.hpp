@@ -18,12 +18,15 @@ concept material =//
 
 }
 
-using albedo_source = std::variant<color, texture>;
+struct uv_albedo {};
+
+using albedo_source = std::variant<color, texture, uv_albedo>;
 
 constexpr auto sample_albedo_source(albedo_source const& source, vec2 uv) -> color {
     stf::multi_visitor visitor{
-      [](color c) { return c; },
-      [uv](texture const& tex) { return tex.sample(uv); },
+      [](color c) -> color { return c; },
+      [uv](texture const& tex) -> color { return tex.sample(uv); },
+      [uv](uv_albedo) -> color { return color(uv, 0); },
     };
 
     return std::visit(visitor, source);
@@ -38,6 +41,7 @@ struct material_base {
         stf::multi_visitor visitor{
           [](color c) { return vec3(0) != c; },
           [](texture const& tex) { return !tex.empty(); },
+          [](uv_albedo) { return true; }
         };
 
         return std::visit(visitor, m_emission);

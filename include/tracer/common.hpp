@@ -29,6 +29,72 @@ using color = vec3;
 
 using default_rng = stf::random::xoshiro_256p;
 
+constexpr void assert_no_nans(vec3 vec) noexcept {
+#ifdef NDEBUG
+    return;
+#endif
+
+    for (usize i = 0; i < 3; i++) {
+        if (!std::isnan(vec[i])) {
+            continue;
+        }
+
+        stf::unreachable_with_message<"vector contains NaN(s)">();
+    }
+}
+
+constexpr void assert_normal(vec3 vec) noexcept {
+#ifdef NDEBUG
+    return;
+#endif
+
+    assert_no_nans(vec);
+
+    real mag = abs(vec);
+    real error = std::abs(mag) - 1;
+
+    if (error < epsilon) {
+        return;
+    }
+
+    stf::unreachable_with_message<"vector is not normalized">();
+}
+
+constexpr void assert_not_zero(vec3 vec) noexcept {
+#ifdef NDEBUG
+    return;
+#endif
+
+    assert_no_nans(vec);
+
+    real mag = abs(vec);
+    real error = std::abs(mag);
+
+    if (error > epsilon) {
+        return;
+    }
+
+    stf::unreachable_with_message<"vector is zero">();
+}
+
+constexpr void assert_orthogonal(vec3 v_0, vec3 v_1) noexcept {
+#ifdef NDEBUG
+    return;
+#endif
+
+    assert_not_zero(v_0);
+    assert_not_zero(v_1);
+
+    real dp = dot(normalize(v_0), normalize(v_1));
+    real error = std::abs(dp);
+
+    if (error < epsilon) {
+        return;
+    }
+
+    stf::unreachable_with_message<"vectors are not orthogonal">();
+}
+
 }// namespace trc
 
 #define VARIANT_CALL(_obj, _name, ...) \

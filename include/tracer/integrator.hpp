@@ -98,9 +98,7 @@ struct task_integrator : integrator {
             n_threads = 1;
         } else {
 #ifdef NDEBUG
-            if ((n_threads = std::thread::hardware_concurrency()) == 0) {
-                n_threads = 1;
-            }
+            n_threads = std::thread::hardware_concurrency();
 #else
             n_threads = 1;
 #endif

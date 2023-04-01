@@ -71,40 +71,6 @@ void sfml_main(image_view image) {
     }
 }
 
-constexpr auto get_scene_smallpt() -> scene {
-    std::vector<material> materials{};
-
-    materials.reserve(32);// avoid reallocations for indices to be reliably gathered
-
-#define PUSH_MATERIAL(...) std::distance(materials.data(), std::addressof(materials.emplace_back(__VA_ARGS__)))
-
-    u32 midx_red = PUSH_MATERIAL(materials::lambertian(vec3{.75, .25, .25}, vec3(0)));
-    u32 midx_blue = PUSH_MATERIAL(materials::lambertian(vec3{.25, .25, .75}, vec3(0)));
-    u32 midx_white = PUSH_MATERIAL(materials::lambertian(vec3(.75), vec3(0)));
-    u32 midx_black = PUSH_MATERIAL(materials::lambertian(vec3(0), vec3(0)));
-    u32 midx_mirror = PUSH_MATERIAL(materials::frensel_conductor(vec3(1), vec3(0)));
-    u32 midx_glass = PUSH_MATERIAL(materials::frensel_dielectric(1, 1.5, vec3(1), vec3(0)));
-    u32 midx_light = PUSH_MATERIAL(materials::lambertian(vec3(0), vec3(12)));
-
-#undef PUSH_MATERIAL
-
-    std::vector<shape> shapes{
-      shapes::sphere{{1e5 + 1, 40.8, 81.6}, 1e5, midx_red},
-      shapes::sphere{{-1e5 + 99, 40.8, 81.6}, 1e5, midx_blue},
-      shapes::sphere{{50, 40.8, 1e5}, 1e5, midx_white},
-      shapes::sphere{{50, 40.8, -1e5 + 170}, 1e5, midx_black},
-      shapes::sphere{{50, 1e5, 81.6}, 1e5, midx_white},
-      shapes::sphere{{50, -1e5 + 81.6, 81.6}, 1e5, midx_white},
-      shapes::sphere{{27, 16.5, 47}, 16.5, midx_mirror},
-      shapes::sphere{{73, 16.5, 78}, 16.5, midx_glass},
-      shapes::sphere{{50, 681.6 - .27, 81.6}, 600, midx_light},
-    };
-
-    scene scene(std::move(shapes), std::move(materials));
-
-    return scene;
-}
-
 constexpr auto get_scene_test() -> scene {
     std::vector<material> materials{};
 
@@ -116,31 +82,48 @@ constexpr auto get_scene_test() -> scene {
     u32 midx_blue_on = PUSH_MATERIAL(materials::oren_nayar(20. / 180. * std::numbers::pi_v<real>, vec3{.25, .25, .75}, vec3(0)));
     u32 midx_white_on = PUSH_MATERIAL(materials::oren_nayar(20. / 180. * std::numbers::pi_v<real>, vec3(.75), vec3(0)));
     u32 midx_red = PUSH_MATERIAL(materials::lambertian(vec3{.75, .25, .25}, vec3(0)));
+    u32 midx_green = PUSH_MATERIAL(materials::lambertian(vec3{.25, .75, .25}, vec3(0)));
     u32 midx_blue = PUSH_MATERIAL(materials::lambertian(vec3{.25, .25, .75}, vec3(0)));
     u32 midx_white = PUSH_MATERIAL(materials::lambertian(vec3(.75), vec3(0)));
 
-    u32 midx_light = PUSH_MATERIAL(materials::lambertian(vec3(0), vec3(12)));
+    u32 midx_white_light = PUSH_MATERIAL(materials::lambertian(vec3(0), vec3(15)));
+    u32 midx_red_light = PUSH_MATERIAL(materials::lambertian(vec3(0), vec3{12, 0, 0}));
+    u32 midx_green_light = PUSH_MATERIAL(materials::lambertian(vec3(0), vec3{0, 12, 0}));
+    u32 midx_blue_light = PUSH_MATERIAL(materials::lambertian(vec3(0), vec3{0, 0, 12}));
+
+    u32 midx_uv = PUSH_MATERIAL(materials::lambertian(uv_albedo{}, vec3(0)));
     u32 midx_uv0 = PUSH_MATERIAL(materials::lambertian(texture("uv_grid_0.qoi", wrapping_mode::repeat, scaling_method::nearest), vec3(0)));
     u32 midx_uv1 = PUSH_MATERIAL(materials::lambertian(texture("uv_grid_1.qoi", wrapping_mode::repeat, scaling_method::nearest), vec3(0)));
     u32 midx_uv2 = PUSH_MATERIAL(materials::lambertian(texture("uv_grid_2.qoi", wrapping_mode::repeat, scaling_method::nearest), vec3(0)));
+    u32 midx_magdonal = PUSH_MATERIAL(materials::lambertian(texture("magdonal.qoi", wrapping_mode::repeat, scaling_method::nearest), vec3(0)));
     u32 midx_surf = PUSH_MATERIAL(materials::lambertian(texture("kodim10.qoi", wrapping_mode::repeat, scaling_method::nearest), vec3(0)));
     u32 midx_parrot = PUSH_MATERIAL(materials::lambertian(texture("kodim23.qoi", wrapping_mode::repeat, scaling_method::nearest), vec3(0)));
     u32 midx_mirror = PUSH_MATERIAL(materials::frensel_conductor(vec3(0.999), vec3(0)));
-    u32 midx_glass = PUSH_MATERIAL(materials::frensel_dielectric(1, 2, vec3(0.999), vec3(0)));
+    u32 midx_glass = PUSH_MATERIAL(materials::frensel_dielectric(1, 1.5, vec3(0.999), vec3(0)));
 
 #undef PUSH_MATERIAL
 
+    real obj_radius = 0.85;
+    vec3 left_obj_center{-1.3, -2.25 + obj_radius, 8.5};
+    vec3 right_obj_center{1.3, -2.25 + obj_radius, 7.3};
+
     std::vector<shape> shapes{
-      shapes::plane{{-2.8, 0, 10}, {1, 0, 0}, midx_red},
-      shapes::plane{{0, 0, 10}, {0, 0, -1}, midx_white},
-      shapes::plane{{2.8, 0, 10}, {-1, 0, 0}, midx_blue},
-      shapes::plane{{0, 2.25, 10}, {0, -1, 0}, midx_white},
-      shapes::plane{{0, -2.25, 10}, {0, 1, 0}, midx_white},
-      shapes::disc{{0, 2.2499, 7.5}, {0, -1, 0}, 0.71, midx_light},
-      //shapes::sphere{{0, 10, 8}, 10 - 2.4, midx_light},
-      shapes::sphere{{-1.3, -2.25 + 0.85, 8.5}, 0.85, midx_mirror},
-      shapes::sphere{{1.3, -2.25 + 0.85, 7.3}, 0.85, midx_glass},
-      shapes::disc{{0, 1, 9.5}, {0, 0, -1}, 1, midx_uv1},
+      shapes::plane(midx_red, {-2.8, 0, 10}, {1, 0, 0}),   // left
+      shapes::plane(midx_uv0, {0, 0, 10}, {0, 0, -1}),     // back
+      shapes::plane(midx_blue, {2.8, 0, 10}, {-1, 0, 0}),  // right
+      shapes::plane(midx_white, {0, 2.25, 10}, {0, -1, 0}),// top
+      shapes::plane(midx_white, {0, -2.25, 10}, {0, 1, 0}),// bottom
+
+      //shapes::box(midx_mirror, {left_obj_center - vec3(obj_radius), left_obj_center + vec3(obj_radius)}),
+      shapes::sphere(midx_mirror, left_obj_center, obj_radius),
+      shapes::sphere(midx_glass, right_obj_center, obj_radius),
+
+      shapes::disc(midx_white_light, {0, 2.2499, 7.5}, {0, -1, 0}, 0.71),
+      /*shapes::disc(midx_red_light, {-2, 2.2499, 7.5}, {0, -1, 0}, 0.71),
+      shapes::disc(midx_green_light, {0, 2.2499, 7.5}, {0, -1, 0}, 0.71),
+      shapes::disc(midx_blue_light, {2, 2.2499, 7.5}, {0, -1, 0}, 0.71),*/
+
+      shapes::box(midx_magdonal, {{-2.5, -2.25, 5}, {-0.5, -1.25, 7}}),
     };
 
     scene scene(std::move(shapes), std::move(materials));
@@ -150,7 +133,7 @@ constexpr auto get_scene_test() -> scene {
 
 int main() {
 #ifdef NDEBUG
-    usize samples = 512;
+    usize samples = 1024;
     usize width = 800;
     usize height = 600;
 #else
@@ -161,11 +144,8 @@ int main() {
 
     auto camera = std::make_shared<pinhole_camera>(vec3(0), vec2(width, height), 80. / 180. * std::numbers::pi_v<real>);
     //auto camera = std::make_shared<environment_camera>(vec3(0), vec2(width, height));
-    //auto camera = std::make_shared<pinhole_camera>(vec3(50,52,295.6), vec2(width, height), 90. / 180. * std::numbers::pi_v<real>, stf::blas::rotation_matrix<real, stf::blas::matrix>(0, 0, std::numbers::pi_v<real>));
-    //auto camera = std::make_shared<environment_camera>(vec3(50,52,295.6), vec2(width, height));
 
     auto scene = std::make_shared<trc::scene>(get_scene_test());
-    //auto scene = std::make_shared<trc::scene>(get_scene_smallpt());
 
     unidirectional_pt integrator(std::move(camera), std::move(scene));
 
@@ -177,9 +157,9 @@ int main() {
       .samples = samples,
     };
 
-    std::thread integrator_thread { [&] {
+    std::thread integrator_thread{[&] {
         integrator.integrate(trc::image_view{image}, opts, gen);
-    } };
+    }};
 
     sfml_main(image);
 
