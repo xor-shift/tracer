@@ -56,27 +56,25 @@ struct lambertian : material_base {
             wi = -wi;
         }
 
-        trc::color albedo = albedo_at(isection.uv);
-
         return {
           .wi = isection.vector_from_refl_space(wi),
           .wi_prob = pdf,
 
-          .attenuation = albedo_at(isection.uv) * brdf(isection, wi, isection.get_local_wo()),
-          .emittance = le_at(isection.uv),
+          .attenuation = albedo_at(isection) * brdf(isection, wi, isection.get_local_wo()),
+          .emittance = le_at(isection),
 
           .isection = isection,
         };
     }
 
     constexpr auto fn(intersection const& isection, vec3 wi_local) const -> interaction {
-        trc::color albedo = albedo_at(isection.uv);
+        trc::color albedo = albedo_at(isection);
 
         return interaction{
           .wi = isection.vector_from_refl_space(wi_local),
 
-          .attenuation = albedo_at(isection.uv) * brdf(isection, wi_local, isection.get_local_wo()),
-          .emittance = le_at(isection.uv),
+          .attenuation = albedo_at(isection) * brdf(isection, wi_local, isection.get_local_wo()),
+          .emittance = le_at(isection),
 
           .isection = isection,
         };
@@ -99,8 +97,8 @@ struct frensel_conductor : material_base {
           .wi = refl_wi,
           .wi_prob = 1,
 
-          .attenuation = albedo_at(isection.uv) / std::abs(dot(refl_wi, isection.get_global_normal())),
-          .emittance = le_at(isection.uv),
+          .attenuation = albedo_at(isection) / std::abs(dot(refl_wi, isection.get_global_normal())),
+          .emittance = le_at(isection),
 
           .isection = isection,
         };
@@ -111,7 +109,7 @@ struct frensel_conductor : material_base {
           .wi = isection.vector_from_refl_space(wi_local),
 
           .attenuation = color(0),
-          .emittance = le_at(isection.uv),
+          .emittance = le_at(isection),
 
           .isection = isection,
         };
@@ -167,8 +165,8 @@ struct frensel_dielectric : material_base {
           .wi = wi,
           .wi_prob = pdf,
 
-          .attenuation = pdf * albedo_at(isection.uv) / std::abs(dot(wi, normal)),
-          .emittance = le_at(isection.uv),
+          .attenuation = pdf * albedo_at(isection) / std::abs(dot(wi, normal)),
+          .emittance = le_at(isection),
 
           .isection = isection,
         };
@@ -179,7 +177,7 @@ struct frensel_dielectric : material_base {
           .wi = isection.vector_from_refl_space(wi_local),
 
           .attenuation = color(0),
-          .emittance = le_at(isection.uv),
+          .emittance = le_at(isection),
 
           .isection = isection,
         };

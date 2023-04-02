@@ -24,7 +24,7 @@ struct box {
         }
     }
 
-    constexpr auto intersect(ray const& ray) const -> std::optional<intersection>;
+    constexpr auto intersect(ray const& ray, real best_t = std::numeric_limits<real>::infinity()) const -> std::optional<intersection>;
 
     constexpr auto intersects(ray const& ray) const -> bool {
         return check_bounds_intersection(ray, m_extents);

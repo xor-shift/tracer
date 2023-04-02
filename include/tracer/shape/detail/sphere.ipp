@@ -2,10 +2,10 @@
 
 namespace trc::shapes {
 
-constexpr auto sphere::intersect(ray const& ray) const -> std::optional<intersection> {
+constexpr auto sphere::intersect(ray const& ray, real best_t) const -> std::optional<intersection> {
     real t = TRYX(intersect_impl(ray));
 
-    if (t < 0)
+    if (t < 0 || t > best_t)
         return std::nullopt;
 
     vec3 isection_point = ray.origin + t * ray.direction;

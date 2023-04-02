@@ -6,10 +6,12 @@
 namespace trc {
 
 using namespace stf::integers;
+using namespace stf::blas;
 
 using real = double;
 
-static constexpr real epsilon = 0.0001;
+static constexpr real epsilon = 0.00001;
+static constexpr real infinity = std::numeric_limits<real>::infinity();
 
 using bvec2 = stf::blas::vector<bool, 2>;
 using bvec3 = stf::blas::vector<bool, 3>;

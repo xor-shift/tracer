@@ -15,7 +15,7 @@ struct plane {
         , m_normal(normal)
         , m_mat_idx(mat_idx) {}
 
-    constexpr auto intersect(ray const& ray) const -> std::optional<intersection>;
+    constexpr auto intersect(ray const& ray, real best_t = std::numeric_limits<real>::infinity()) const -> std::optional<intersection>;
 
     constexpr auto intersects(ray const& ray) const -> bool;
 

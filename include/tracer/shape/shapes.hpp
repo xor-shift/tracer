@@ -6,14 +6,15 @@
 #include <tracer/shape/disc.hpp>
 #include <tracer/shape/sphere.hpp>
 #include <tracer/shape/plane.hpp>
+#include <tracer/shape/triangle.hpp>
 
 #include <variant>
 
 namespace trc {
 
-using bound_shape = std::variant<shapes::sphere, shapes::disc, shapes::box>;
+using bound_shape = std::variant<shapes::sphere, shapes::disc, shapes::box, shapes::triangle>;
 using unbound_shape = std::variant<shapes::plane>;
 
-using shape = std::variant<shapes::sphere, shapes::disc, shapes::box, shapes::plane>;
+using shape = std::variant<shapes::sphere, shapes::disc, shapes::box, shapes::triangle, shapes::plane>;
 
 }

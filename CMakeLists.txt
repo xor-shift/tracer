@@ -31,12 +31,16 @@ if (NOT TARGET stuff_thread)
     add_subdirectory(thirdparty/stuff/libs/thread ${CMAKE_CURRENT_BINARY_DIR}/libs/thread)
 endif ()
 
+if (NOT TARGET stuff_trilang)
+    add_subdirectory(thirdparty/stuff/libs/trilang ${CMAKE_CURRENT_BINARY_DIR}/libs/trilang)
+endif ()
+
 add_subdirectory(thirdparty/sfml)
 
 add_executable(tracer main.cpp)
 target_link_libraries(tracer
         SFML::System SFML::Window SFML::Graphics
-        stuff_core stuff_blas stuff_random stuff_ranvec stuff_qoi stuff_thread)
+        stuff_core stuff_blas stuff_random stuff_ranvec stuff_qoi stuff_thread stuff_trilang)
 target_include_directories(tracer PRIVATE include)
 
 if (CMAKE_BUILD_TYPE STREQUAL "Debug" OR CMAKE_BUILD_TYPE STREQUAL "RelWithDebInfo")

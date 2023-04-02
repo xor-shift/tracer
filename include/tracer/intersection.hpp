@@ -38,8 +38,8 @@ struct intersection {
         normal = normalize(cross(dpduv.first, dpduv.second));
         st.second = cross(normal, st.first);
 
-        assert_orthogonal(dpduv.first, dpduv.second);
-        assert_orthogonal(dpduv.first, normal);
+        assert_orthogonal(st.first, st.second);
+        assert_orthogonal(st.first, normal);
         assert_normal(normal);
     }
 

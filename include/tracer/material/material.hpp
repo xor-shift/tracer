@@ -19,14 +19,19 @@ concept material =//
 }
 
 struct uv_albedo {};
+struct normal_albedo {};
 
-using albedo_source = std::variant<color, texture, uv_albedo>;
+using albedo_source = std::variant<color, texture, uv_albedo, normal_albedo>;
 
-constexpr auto sample_albedo_source(albedo_source const& source, vec2 uv) -> color {
+constexpr auto sample_albedo_source(albedo_source const& source, intersection const& isection) -> color {
+    vec2 uv = isection.uv;
+    vec3 normal = isection.get_global_normal();
+
     stf::multi_visitor visitor{
       [](color c) -> color { return c; },
       [uv](texture const& tex) -> color { return tex.sample(uv); },
       [uv](uv_albedo) -> color { return color(uv, 0); },
+      [normal](normal_albedo) -> color { return color(elem_abs(normal)); },
     };
 
     return std::visit(visitor, source);
@@ -41,7 +46,8 @@ struct material_base {
         stf::multi_visitor visitor{
           [](color c) { return vec3(0) != c; },
           [](texture const& tex) { return !tex.empty(); },
-          [](uv_albedo) { return true; }
+          [](uv_albedo) { return true; },
+          [](normal_albedo) { return true; },
         };
 
         return std::visit(visitor, m_emission);
@@ -51,13 +57,13 @@ protected:
     albedo_source m_albedo;
     albedo_source m_emission{vec3(0)};
 
-    constexpr auto albedo_at(vec2 uv) const -> color {
-        return sample_albedo_source(m_albedo, uv);
+    constexpr auto albedo_at(intersection const& isection) const -> color {
+        return sample_albedo_source(m_albedo, isection);
     }
 
-    constexpr auto le_at(vec2 uv) const -> color {
-        return sample_albedo_source(m_emission, uv);
+    constexpr auto le_at(intersection const& isection) const -> color {
+        return sample_albedo_source(m_emission, isection);
     }
 };
 
-}
+}// namespace trc

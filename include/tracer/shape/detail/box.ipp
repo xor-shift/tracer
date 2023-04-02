@@ -11,14 +11,14 @@ constexpr auto check_bounds_intersection(ray const& ray, std::pair<vec3, vec3> c
 
 namespace shapes {
 
-constexpr auto box::intersect(ray const& ray) const -> std::optional<intersection> {
+constexpr auto box::intersect(ray const& ray, real best_t) const -> std::optional<intersection> {
     auto const& [t_min, t_max] = impl(ray, m_extents);
     if (t_min >= t_max)
         return std::nullopt;
 
     real t = t_min > 0 ? t_min : t_max;
 
-    if (t < 0)
+    if (t < 0 || t > best_t)
         return std::nullopt;
 
     vec3 global_pt = ray.origin + ray.direction * t;

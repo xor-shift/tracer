@@ -12,7 +12,7 @@ constexpr void texture::create(stf::qoi::image<Allocator>&& image, wrapping_mode
     m_height = static_cast<real>(m_image.width());
 }
 
-auto texture::from_file(std::string_view filename, wrapping_mode wrapping_mode, scaling_method scaling_method) -> stf::expected::expected<void, std::string_view> {
+auto texture::from_file(std::string_view filename, wrapping_mode wrapping_mode, scaling_method scaling_method) -> stf::expected<void, std::string_view> {
     stf::qoi::image<> image_copy = m_image;
 
     stf::scope::scope_exit guard{[&] {

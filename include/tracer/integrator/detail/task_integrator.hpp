@@ -180,7 +180,7 @@ private:
     bool m_odd_direction_change = false;
     usize m_step_counter = 0;
     usize m_steps = 1;
-    direction m_direction = direction::east;
+    direction m_direction = direction::north;
 
     std::pair<isize, isize> m_next_offset{0, 0};
 };

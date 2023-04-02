@@ -21,8 +21,8 @@ struct oren_nayar : material_base {
           .wi = isection.vector_from_refl_space(wi),
           .wi_prob = pdf,
 
-          .attenuation = albedo_at(isection.uv) * brdf(isection, wi, isection.get_local_wo()),
-          .emittance = le_at(isection.uv),
+          .attenuation = albedo_at(isection) * brdf(isection, wi, isection.get_local_wo()),
+          .emittance = le_at(isection),
 
           .isection = isection,
         };
@@ -32,8 +32,8 @@ struct oren_nayar : material_base {
         return interaction{
           .wi = isection.vector_from_refl_space(wi_local),
 
-          .attenuation = albedo_at(isection.uv) * brdf(isection, wi_local, isection.get_local_wo()),
-          .emittance = le_at(isection.uv),
+          .attenuation = albedo_at(isection) * brdf(isection, wi_local, isection.get_local_wo()),
+          .emittance = le_at(isection),
 
           .isection = isection,
         };

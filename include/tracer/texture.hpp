@@ -34,7 +34,7 @@ struct texture {
     template<typename Allocator>
     constexpr void create(stf::qoi::image<Allocator>&& image, wrapping_mode wrapping_mode, scaling_method scaling_method);
 
-    auto from_file(std::string_view filename, wrapping_mode wrapping_mode, scaling_method scaling_method) -> stf::expected::expected<void, std::string_view>;
+    auto from_file(std::string_view filename, wrapping_mode wrapping_mode, scaling_method scaling_method) -> stf::expected<void, std::string_view>;
 
     constexpr auto empty() const -> bool { return m_image.empty(); }
 

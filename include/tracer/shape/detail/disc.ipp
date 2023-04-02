@@ -2,11 +2,11 @@
 
 namespace trc::shapes {
 
-constexpr auto disc::intersect(ray const& ray) const -> std::optional<intersection> {
+constexpr auto disc::intersect(ray const& ray, real best_t) const -> std::optional<intersection> {
     // ray-plane intersection
     real t = dot(m_center - ray.origin, m_normal) / dot(m_normal, ray.direction);
 
-    if (t <= 0 || std::isinf(t)) {
+    if (t < 0 || t > best_t || std::isinf(t)) {
         return std::nullopt;
     }
 

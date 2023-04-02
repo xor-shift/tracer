@@ -4,11 +4,11 @@
 
 namespace trc::shapes {
 
-constexpr auto plane::intersect(ray const& ray) const -> std::optional<intersection> {
+constexpr auto plane::intersect(ray const& ray, real best_t) const -> std::optional<intersection> {
     real divisor = dot(m_normal, ray.direction);
     real t = dot(m_center - ray.origin, m_normal) / divisor;
 
-    if (t <= 0 || std::isinf(t))
+    if (t < 0 || t > best_t || std::isinf(t))
         return std::nullopt;
 
     vec3 isection_point = ray.origin + t * ray.direction;

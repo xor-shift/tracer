@@ -17,7 +17,7 @@ struct sphere {
         , m_radius(radius)
         , m_mat_idx(mat_idx) {}
 
-    constexpr auto intersect(ray const& ray) const -> std::optional<intersection>;
+    constexpr auto intersect(ray const& ray, real best_t = std::numeric_limits<real>::infinity()) const -> std::optional<intersection>;
 
     constexpr auto intersects(ray const& ray) const -> bool { return !!intersect_impl(ray); }
 
@@ -28,13 +28,9 @@ struct sphere {
     template<typename Gen>
     constexpr auto sample_surface(Gen& gen) const -> intersection;
 
-    constexpr auto normal_at(vec3 pt) const -> vec3;
-
     constexpr auto surface_area() const -> real {
         return 4 * std::numbers::pi_v<real> * m_radius;
     }
-
-    constexpr auto material_index() const -> u32 { return m_mat_idx; }
 
 private:
     vec3 m_center;
@@ -44,6 +40,10 @@ private:
     constexpr auto intersect_impl(ray const& ray) const -> std::optional<real>;
 
     constexpr void get_surface_information(vec3 local_pt, vec2& uv, vec3& dpdu, vec3& dpdv) const;
+
+    constexpr auto normal_at(vec3 pt) const -> vec3;
+
+    constexpr auto material_index() const -> u32 { return m_mat_idx; }
 };
 
 static_assert(concepts::bound_shape<sphere>);

@@ -7,9 +7,10 @@
 namespace trc {
 
 struct scene {
-    constexpr scene(std::vector<shape>&& shapes, std::vector<material>&& materials)
-        : m_materials(std::move(materials)) {
-        for (shape& s: std::move(shapes)) {
+    constexpr scene(std::vector<shape> const& shapes, std::vector<material> materials, std::vector<std::unique_ptr<dyn_shape>>&& dyn_shapes = {})
+        : m_materials(std::move(materials))
+        , m_dyn_shapes(std::move(dyn_shapes)) {
+        for (shape s: shapes) {
             auto visitor = stf::multi_visitor{
               [this]<concepts::bound_shape T>(T&& s) { m_bound_shapes.emplace_back(std::move(s)); },
               [this]<concepts::unbound_shape T>(T&& s) { m_unbound_shapes.emplace_back(std::move(s)); },
@@ -27,14 +28,17 @@ struct scene {
         for (unbound_shape const& s: m_unbound_shapes) {
             std::visit(std::forward<Fn>(fn), s);
         }
+
+        for (auto const& s: m_dyn_shapes) {
+            std::invoke(std::forward<Fn>(fn), *s);
+        }
     }
 
-    constexpr auto intersect(ray const& ray) const -> std::optional<intersection> {
-        real best_t = std::numeric_limits<real>::infinity();
+    constexpr auto intersect(ray const& ray, real best_t = infinity) const -> std::optional<intersection> {
         std::optional<intersection> best_isection = std::nullopt;
 
         for_each_shape([&](concepts::shape auto const& shape) {
-            std::optional<intersection> isection = shape.intersect(ray);
+            std::optional<intersection> isection = shape.intersect(ray, best_t);
             if (!isection)
                 return;
 
@@ -87,6 +91,7 @@ struct scene {
 private:
     std::vector<trc::material> m_materials;
 
+    std::vector<std::unique_ptr<dyn_shape>> m_dyn_shapes{};
     std::vector<bound_shape> m_bound_shapes{};
     std::vector<unbound_shape> m_unbound_shapes{};
 };
