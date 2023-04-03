@@ -100,7 +100,6 @@ constexpr auto get_scene_test() -> scene {
     u32 midx_uv0 = PUSH_MATERIAL(materials::lambertian(texture("uv_grid_0.qoi", wrapping_mode::repeat, scaling_method::nearest), vec3(0)));
     u32 midx_uv1 = PUSH_MATERIAL(materials::lambertian(texture("uv_grid_1.qoi", wrapping_mode::repeat, scaling_method::nearest), vec3(0)));
     u32 midx_uv2 = PUSH_MATERIAL(materials::lambertian(texture("uv_grid_2.qoi", wrapping_mode::repeat, scaling_method::nearest), vec3(0)));
-    u32 midx_magdonal = PUSH_MATERIAL(materials::lambertian(texture("magdonal.qoi", wrapping_mode::repeat, scaling_method::nearest), vec3(0)));
     u32 midx_surf = PUSH_MATERIAL(materials::lambertian(texture("kodim10.qoi", wrapping_mode::repeat, scaling_method::nearest), vec3(0)));
     u32 midx_parrot = PUSH_MATERIAL(materials::lambertian(texture("kodim23.qoi", wrapping_mode::repeat, scaling_method::nearest), vec3(0)));
     u32 midx_mirror = PUSH_MATERIAL(materials::frensel_conductor(vec3(0.999), vec3(0)));
@@ -179,9 +178,9 @@ static auto get_scene_teapot() -> scene {
 
 int main() {
 #ifdef NDEBUG
-    usize samples = 8192;
-    usize width = 1024;
-    usize height = 768;
+    usize samples = 64;
+    usize width = 800;
+    usize height = 600;
 #else
     usize samples = 1;
     usize width = 400;
