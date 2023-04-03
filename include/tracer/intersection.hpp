@@ -17,19 +17,10 @@ struct intersection {
         , t(t)
         , isection_point(isection_point)
         , uv(uv)
+        , dpduv(dpduv)
         , material_index(mat_idx) {
         set_surface_derivatives(dpduv);
         local_wo = vector_to_refl_space(wo);
-    }
-
-    // old style, remove
-    constexpr intersection(std::in_place_t, u32 mat_idx, vec3 wo, real t, vec3 isection_point, vec2 uv, vec3 normal)
-        : wo(wo)
-        , t(t)
-        , isection_point(isection_point)
-        , uv(uv)
-        , normal(normal)
-        , material_index(mat_idx) {
     }
 
     constexpr void set_surface_derivatives(std::pair<vec3, vec3> dpduv) {

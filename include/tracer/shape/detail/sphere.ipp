@@ -19,6 +19,10 @@ constexpr auto sphere::intersect(ray const& ray, real best_t) const -> std::opti
 
     vec3 wo = -ray.direction;
 
+    if (dot(wo, local_pt / m_radius) < 0) {
+        std::ignore = 0;
+    }
+
     intersection ret(m_mat_idx, wo, t, isection_point, uv, {dpdu, dpdv});
 
     return ret;
@@ -27,7 +31,6 @@ constexpr auto sphere::intersect(ray const& ray, real best_t) const -> std::opti
 template<typename Gen>
 constexpr auto sphere::sample_surface(Gen& gen) const -> intersection {
     vec3 isection_point = m_center + stf::random::sphere_sampler<2>::sample<real>(gen) * m_radius;
-    vec3 normal = normal_at(isection_point);
     vec3 local_pt = isection_point - m_center;
 
     vec2 uv;
@@ -41,8 +44,8 @@ constexpr auto sphere::sample_surface(Gen& gen) const -> intersection {
     return ret;
 }
 
-constexpr auto sphere::normal_at(vec3 pt) const -> vec3 {
-    return (pt - m_center) / m_radius;
+constexpr auto sphere::normal_at(vec3 global_pt) const -> vec3 {
+    return (global_pt - m_center) / m_radius;
 }
 
 constexpr auto sphere::intersect_impl(ray const& ray) const -> std::optional<real> {
@@ -66,13 +69,10 @@ constexpr auto sphere::intersect_impl(ray const& ray) const -> std::optional<rea
 }
 
 constexpr void sphere::get_surface_information(vec3 local_pt, vec2& uv, vec3& dpdu, vec3& dpdv) const {
-    real theta_min = std::acos(-1);
-    real theta_max = std::acos(1);
-
     real phi;
     real theta;
     auto spherical_coordinates = std::tie(phi, theta);
-    std::tie(uv, spherical_coordinates) = detail::get_sphere_uv(local_pt, m_radius, {theta_min, theta_max});
+    std::tie(uv, spherical_coordinates) = detail::get_sphere_uv(local_pt, m_radius);
 
     real dx_du = -2 * std::numbers::pi_v<real> * local_pt[1];
     real dy_du = 2 * std::numbers::pi_v<real> * local_pt[0];
@@ -88,7 +88,7 @@ constexpr void sphere::get_surface_information(vec3 local_pt, vec2& uv, vec3& dp
     real dz_dv = -m_radius * std::sin(theta);
 
     dpdu = vec3{dx_du, dy_du, dz_du};
-    dpdv = (theta_max - theta_min) * vec3{dx_dv, dy_dv, dz_dv};
+    dpdv = -std::numbers::pi_v<real> * vec3{dx_dv, dy_dv, dz_dv};
 }
 
 }// namespace trc::shapes

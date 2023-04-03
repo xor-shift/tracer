@@ -2,4 +2,5 @@
 &ndash; cirno
 
 ### Demo Pic(s):
-![render](demo/render.png)
+![render 00](demo/render_00.png)
+![render 01](demo/render_01.png)

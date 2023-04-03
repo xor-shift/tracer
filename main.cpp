@@ -76,7 +76,28 @@ void sfml_main(image_view image) {
     }
 }
 
-constexpr auto get_scene_test() -> scene {
+static auto read_stl(std::filesystem::path filename, usize mat_idx, mat4x4 transform = identity_matrix<real, 4, matrix>()) -> std::unique_ptr<dyn_shape> {
+    std::ifstream stl_file(filename);
+    stf::trilang::stl::binary_stream triangle_stream{std::istreambuf_iterator<char>(stl_file), std::istreambuf_iterator<char>()};
+
+    std::vector<bound_shape> teapot_triangles{};
+    for (;;) {
+        auto res = triangle_stream.next();
+        if (!res) {
+            break;
+        }
+
+        vec3 v_0 = homogeneous_to_cartesian(transform * vec4{res->vertices[0][0], res->vertices[0][1], res->vertices[0][2], 1});
+        vec3 v_1 = homogeneous_to_cartesian(transform * vec4{res->vertices[1][0], res->vertices[1][1], res->vertices[1][2], 1});
+        vec3 v_2 = homogeneous_to_cartesian(transform * vec4{res->vertices[2][0], res->vertices[2][1], res->vertices[2][2], 1});
+
+        teapot_triangles.emplace_back(shapes::triangle(mat_idx, {v_0, v_1, v_2}));
+    }
+
+    return std::make_unique<bvh_tree>(std::move(teapot_triangles));
+}
+
+static auto get_scene_test() -> scene {
     std::vector<material> materials{};
 
     materials.reserve(32);// avoid reallocations for indices to be reliably gathered
@@ -91,6 +112,7 @@ constexpr auto get_scene_test() -> scene {
     u32 midx_blue = PUSH_MATERIAL(materials::lambertian(vec3{.25, .25, .75}, vec3(0)));
     u32 midx_white = PUSH_MATERIAL(materials::lambertian(vec3(.75), vec3(0)));
 
+    u32 midx_normal_light = PUSH_MATERIAL(materials::lambertian(vec3(0), uv_albedo { .scale = vec3(15) }));
     u32 midx_white_light = PUSH_MATERIAL(materials::lambertian(vec3(0), vec3(15)));
     u32 midx_red_light = PUSH_MATERIAL(materials::lambertian(vec3(0), vec3{12, 0, 0}));
     u32 midx_green_light = PUSH_MATERIAL(materials::lambertian(vec3(0), vec3{0, 12, 0}));
@@ -102,8 +124,8 @@ constexpr auto get_scene_test() -> scene {
     u32 midx_uv2 = PUSH_MATERIAL(materials::lambertian(texture("uv_grid_2.qoi", wrapping_mode::repeat, scaling_method::nearest), vec3(0)));
     u32 midx_surf = PUSH_MATERIAL(materials::lambertian(texture("kodim10.qoi", wrapping_mode::repeat, scaling_method::nearest), vec3(0)));
     u32 midx_parrot = PUSH_MATERIAL(materials::lambertian(texture("kodim23.qoi", wrapping_mode::repeat, scaling_method::nearest), vec3(0)));
-    u32 midx_mirror = PUSH_MATERIAL(materials::frensel_conductor(vec3(0.999), vec3(0)));
-    u32 midx_glass = PUSH_MATERIAL(materials::frensel_dielectric(1, 1.5, vec3(0.999), vec3(0)));
+    u32 midx_mirror = PUSH_MATERIAL(materials::fresnel_conductor(vec3(0.999), vec3(0)));
+    u32 midx_glass = PUSH_MATERIAL(materials::fresnel_dielectric(1, 1.5, vec3(0.999), vec3(0)));
 
 #undef PUSH_MATERIAL
 
@@ -113,13 +135,14 @@ constexpr auto get_scene_test() -> scene {
 
     std::vector<bound_shape> bound_shapes{
       //shapes::box(midx_mirror, {left_obj_center - vec3(obj_radius), left_obj_center + vec3(obj_radius)}),
-      shapes::sphere(midx_mirror, left_obj_center, obj_radius),
-      shapes::sphere(midx_glass, right_obj_center, obj_radius),
+      //shapes::sphere(midx_mirror, left_obj_center, obj_radius),
+      //shapes::sphere(midx_glass, right_obj_center, obj_radius),
 
-      shapes::disc(midx_white_light, {0, 2.2499, 7.5}, {0, -1, 0}, 0.71),
-      /*shapes::disc(midx_red_light, {-2, 2.2499, 7.5}, {0, -1, 0}, 0.71),
-      shapes::disc(midx_green_light, {0, 2.2499, 7.5}, {0, -1, 0}, 0.71),
-      shapes::disc(midx_blue_light, {2, 2.2499, 7.5}, {0, -1, 0}, 0.71),*/
+      //shapes::disc(midx_white_light, {0, 2.2499, 7.5}, {0, -1, 0}, 0.71),
+      //shapes::sphere(midx_normal_light, right_obj_center, 0.25),
+      shapes::disc(midx_red_light, {-0.9, 2.2499, 8}, {0, -1, 0}, 0.71),
+      shapes::disc(midx_green_light, {0, 2.2499, 6.5}, {0, -1, 0}, 0.71),
+      shapes::disc(midx_blue_light, {0.9, 2.2499, 8}, {0, -1, 0}, 0.71),
 
       //shapes::box(midx_magdonal, {{-2.5, -2.25, 5}, {-0.5, -1.25, 7}}),
 
@@ -129,9 +152,27 @@ constexpr auto get_scene_test() -> scene {
     std::vector<std::unique_ptr<dyn_shape>> dyn_shapes{};
     dyn_shapes.emplace_back(std::make_unique<bvh_tree>(std::move(bound_shapes)));
 
+    homogenous_transformation<real> teapot_transformation_0 {
+      .rotation{std::numbers::pi_v<real> * -90 / 180, 0, std::numbers::pi_v<real> * 135 / 180},
+      .scale{0.1666, 0.1666, 0.1666},
+      .translation{right_obj_center[0], right_obj_center[1] - obj_radius * 0.75f, right_obj_center[2]},
+    };
+
+    mat4x4 teapot_mat_0 = homogeneous_transformation_matrix<real, matrix>(teapot_transformation_0);
+    dyn_shapes.emplace_back(read_stl("Utah_teapot_(solid).stl", midx_glass, teapot_mat_0));
+
+    homogenous_transformation<real> teapot_transformation_1 {
+      .rotation{std::numbers::pi_v<real> * -90 / 180, 0, std::numbers::pi_v<real> * 45 / 180},
+      .scale{0.1666, 0.1666, 0.1666},
+      .translation{left_obj_center[0], left_obj_center[1] - obj_radius * 0.75f, left_obj_center[2]},
+    };
+
+    mat4x4 teapot_mat_1 = homogeneous_transformation_matrix<real, matrix>(teapot_transformation_1);
+    dyn_shapes.emplace_back(read_stl("Utah_teapot_(solid).stl", midx_mirror, teapot_mat_1));
+
     std::vector<shape> shapes{
       shapes::plane(midx_red, {-2.8, 0, 10}, {1, 0, 0}),   // left
-      shapes::plane(midx_uv0, {0, 0, 10}, {0, 0, -1}),     // back
+      shapes::plane(midx_white, {0, 0, 10}, {0, 0, -1}),     // back
       shapes::plane(midx_blue, {2.8, 0, 10}, {-1, 0, 0}),  // right
       shapes::plane(midx_white, {0, 2.25, 10}, {0, -1, 0}),// top
       shapes::plane(midx_white, {0, -2.25, 10}, {0, 1, 0}),// bottom
@@ -147,27 +188,16 @@ static auto get_scene_teapot() -> scene {
       materials::lambertian(vec3(0), normal_albedo{}),
     };
 
-    std::ifstream stl_file("Utah_teapot_(solid).stl");
-    stf::trilang::stl::binary_stream triangle_stream{std::istreambuf_iterator<char>(stl_file), std::istreambuf_iterator<char>()};
+    homogenous_transformation<real> transformation {
+      .rotation{std::numbers::pi_v<real> * -90 / 180, 0, 0},
+      .scale{1, 1, 1},
+      .translation{0, 0, 0},
+    };
 
-    std::vector<bound_shape> teapot_triangles{};
-    for (;;) {
-        auto res = triangle_stream.next();
-        if (!res) {
-            break;
-        }
-
-        mat3x3 mat = rotation_matrix<real>(std::numbers::pi_v<real> * -90 / 180, 0, 0);
-
-        vec3 v_0 = mat * vec3{res->vertices[0][0], res->vertices[0][1], res->vertices[0][2]};
-        vec3 v_1 = mat * vec3{res->vertices[1][0], res->vertices[1][1], res->vertices[1][2]};
-        vec3 v_2 = mat * vec3{res->vertices[2][0], res->vertices[2][1], res->vertices[2][2]};
-
-        teapot_triangles.emplace_back(shapes::triangle(0, {v_0, v_1, v_2}));
-    }
+    mat4x4 mat = homogeneous_transformation_matrix<real, matrix>(transformation);
 
     std::vector<std::unique_ptr<dyn_shape>> dyn_shapes{};
-    dyn_shapes.emplace_back(std::make_unique<bvh_tree>(std::move(teapot_triangles)));
+    dyn_shapes.emplace_back(read_stl("Utah_teapot_(solid).stl", 0, mat));
 
     std::vector<shape> shapes{
 
@@ -178,21 +208,21 @@ static auto get_scene_teapot() -> scene {
 
 int main() {
 #ifdef NDEBUG
-    usize samples = 64;
-    usize width = 800;
-    usize height = 600;
+    usize samples = 1024 * 4;
+    usize width = 1024;
+    usize height = 768;
 #else
     usize samples = 1;
     usize width = 400;
     usize height = 300;
 #endif
 
-    //auto camera = std::make_shared<pinhole_camera>(vec3(0), vec2(width, height), 80. / 180. * std::numbers::pi_v<real>);
-    auto camera = std::make_shared<pinhole_camera>(vec3{0, 30, -15}, vec2(width, height), 80. / 180. * std::numbers::pi_v<real>, rotation_matrix<real>(std::numbers::pi_v<real> * 60 / 180, 0, 0));
+    auto camera = std::make_shared<pinhole_camera>(vec3(0), vec2(width, height), 80. / 180. * std::numbers::pi_v<real>);
+    //auto camera = std::make_shared<pinhole_camera>(vec3{0, 30, -15}, vec2(width, height), 80. / 180. * std::numbers::pi_v<real>, rotation_matrix<real>(std::numbers::pi_v<real> * 60 / 180, 0, 0));
     //auto camera = std::make_shared<environment_camera>(vec3(0), vec2(width, height));
 
-    //auto scene = std::make_shared<trc::scene>(get_scene_test());
-    auto scene = std::make_shared<trc::scene>(get_scene_teapot());
+    auto scene = std::make_shared<trc::scene>(get_scene_test());
+    //auto scene = std::make_shared<trc::scene>(get_scene_teapot());
 
     unidirectional_pt integrator(std::move(camera), std::move(scene));
 

@@ -18,8 +18,8 @@ concept material =//
 
 }
 
-struct uv_albedo {};
-struct normal_albedo {};
+struct uv_albedo { color scale = vec3(1); };
+struct normal_albedo { color scale = vec3(1); };
 
 using albedo_source = std::variant<color, texture, uv_albedo, normal_albedo>;
 
@@ -30,8 +30,8 @@ constexpr auto sample_albedo_source(albedo_source const& source, intersection co
     stf::multi_visitor visitor{
       [](color c) -> color { return c; },
       [uv](texture const& tex) -> color { return tex.sample(uv); },
-      [uv](uv_albedo) -> color { return color(uv, 0); },
-      [normal](normal_albedo) -> color { return color(elem_abs(normal)); },
+      [uv](uv_albedo src) -> color { return color(uv, 0) * src.scale ; },
+      [normal](normal_albedo src) -> color { return color(elem_abs(normal)) * src.scale; },
     };
 
     return std::visit(visitor, source);

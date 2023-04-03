@@ -95,7 +95,7 @@ constexpr auto box::uv_at(vec3 global_pt) const -> vec2 {
     vec3 local_p_dir = normalize(unit_p);
 
     vec2 uv;
-    std::tie(uv, std::ignore) = detail::get_sphere_uv(local_p_dir, 1, {std::acos(-1), std::acos(1)});
+    std::tie(uv, std::ignore) = detail::get_sphere_uv(local_p_dir, 1);
 
     return uv;
 }
