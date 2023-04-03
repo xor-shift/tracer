@@ -187,12 +187,12 @@ int main() {
     usize height = 300;
 #endif
 
-    auto camera = std::make_shared<pinhole_camera>(vec3(0), vec2(width, height), 80. / 180. * std::numbers::pi_v<real>);
-    //auto camera = std::make_shared<pinhole_camera>(vec3{0, 30, -15}, vec2(width, height), 80. / 180. * std::numbers::pi_v<real>, rotation_matrix<real>(std::numbers::pi_v<real> * 60 / 180, 0, 0));
+    //auto camera = std::make_shared<pinhole_camera>(vec3(0), vec2(width, height), 80. / 180. * std::numbers::pi_v<real>);
+    auto camera = std::make_shared<pinhole_camera>(vec3{0, 30, -15}, vec2(width, height), 80. / 180. * std::numbers::pi_v<real>, rotation_matrix<real>(std::numbers::pi_v<real> * 60 / 180, 0, 0));
     //auto camera = std::make_shared<environment_camera>(vec3(0), vec2(width, height));
 
-    auto scene = std::make_shared<trc::scene>(get_scene_test());
-    //auto scene = std::make_shared<trc::scene>(get_scene_teapot());
+    //auto scene = std::make_shared<trc::scene>(get_scene_test());
+    auto scene = std::make_shared<trc::scene>(get_scene_teapot());
 
     unidirectional_pt integrator(std::move(camera), std::move(scene));
 
