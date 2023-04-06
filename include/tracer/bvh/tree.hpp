@@ -8,8 +8,10 @@ namespace detail {
 
 // this structure does not manage the child nodes on its own
 struct bvh_node {
-    constexpr bvh_node(std::vector<bound_shape> shapes)
-        : m_shapes(std::move(shapes)) {
+    constexpr bvh_node(std::vector<bound_shape> shapes, bvh_node* parent = nullptr, usize depth = 0)
+        : m_parent(parent)
+        , m_depth(depth)
+        , m_shapes(std::move(shapes)) {
         compute_bounds();
     }
 
@@ -54,7 +56,7 @@ struct bvh_node {
         return true;
     }
 
-    constexpr auto intersect(ray const& ray, real best_t = infinity) const -> std::optional<intersection> {
+    constexpr auto intersect(ray const& ray, pixel_statistics& stats, real best_t = infinity) const -> std::optional<intersection> {
         if (!check_bounds_intersection(ray, m_bounds)) {
             return std::nullopt;
         }
@@ -84,10 +86,22 @@ struct bvh_node {
         return best_isection;
     }
 
+    constexpr auto intersect(ray const& ray, real best_t = infinity) const -> std::optional<intersection> {
+        pixel_statistics stats {};
+        return intersect(ray, stats, best_t);
+    }
+
     constexpr auto intersects(ray const& ray) const -> bool { return !!intersect(ray); }
+
+    constexpr auto children() const -> std::span<const bvh_node* const> { return {m_children.data(), m_children.size()}; }
+
+    constexpr auto parent() const -> bvh_node* { return m_parent; }
 
 private:
     // consistency note: either m_shapes xor m_children are be allowed to be !empty() at a time
+
+    bvh_node* m_parent = nullptr;// non-owning, memoization
+    usize m_depth = 0;           // memoization
 
     std::vector<bound_shape> m_shapes{};
 
@@ -132,13 +146,13 @@ private:
 
 }// namespace detail
 
-struct bvh_tree : dyn_shape {
+struct bvh_tree final : dyn_shape {
     constexpr bvh_tree(std::vector<bound_shape> shapes)
         : m_root(new detail::bvh_node(std::move(shapes))) {
         m_root->split(10);
     }
 
-    constexpr ~bvh_tree() {
+    constexpr ~bvh_tree() final override {
         std::vector<detail::bvh_node*> destruct_list{m_root};
         m_root = nullptr;
 
@@ -165,11 +179,15 @@ struct bvh_tree : dyn_shape {
         }
     }
 
-    constexpr auto intersect(ray const& ray, real best_t = infinity) const -> std::optional<intersection> {
+    constexpr auto intersect(ray const& ray, real best_t = infinity) const -> std::optional<intersection> final override {
         return m_root->intersect(ray, best_t);
     }
 
-    constexpr auto intersects(ray const& ray) const -> bool { return m_root->intersects(ray); }
+    constexpr auto intersect(ray const& ray, pixel_statistics& stats, real best_t = infinity) const -> std::optional<intersection> final override {
+        return m_root->intersect(ray, stats, best_t);
+    }
+
+    constexpr auto intersects(ray const& ray) const -> bool final override { return m_root->intersects(ray); }
 
 private:
     detail::bvh_node* m_root = nullptr;

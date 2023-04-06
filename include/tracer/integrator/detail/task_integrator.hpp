@@ -194,7 +194,7 @@ struct task_integrator : integrator {
         : integrator(camera, scene)
         , m_task_generator(generator) {}
 
-    constexpr void integrate(image_view out, integration_options opts, default_rng& gen) noexcept final override {
+    constexpr void integrate(image_view out, integration_settings opts, default_rng& gen) noexcept final override {
         m_task_generator.set_image(out);
 
         usize n_threads;
@@ -260,7 +260,7 @@ struct task_integrator : integrator {
     }
 
 protected:
-    virtual constexpr void task_processor(task_payload_type payload, integration_options opts, default_rng& gen) noexcept = 0;
+    virtual constexpr void task_processor(task_payload_type payload, integration_settings opts, default_rng& gen) noexcept = 0;
 
 private:
     task_generator_type m_task_generator;

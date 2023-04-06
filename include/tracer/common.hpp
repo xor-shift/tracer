@@ -5,7 +5,6 @@
 
 namespace trc {
 
-using namespace stf::integers;
 using namespace stf::blas;
 
 using real = double;
@@ -36,6 +35,11 @@ constexpr auto homogeneous_to_cartesian(vec4 vec) -> vec3 {
 using color = vec3;
 
 using default_rng = stf::random::xoshiro_256p;
+
+struct pixel_statistics {
+    usize bound_intersection_tests = 0;
+    usize shape_intersection_tests = 0;
+};
 
 constexpr void assert_no_nans(vec3 vec) noexcept {
 #ifdef NDEBUG

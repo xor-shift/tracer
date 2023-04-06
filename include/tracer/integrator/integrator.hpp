@@ -12,7 +12,7 @@
 
 namespace trc {
 
-struct integration_options {
+struct integration_settings {
     usize samples = 0;
     std::chrono::seconds sample_for = std::chrono::years(1);
 };
@@ -24,7 +24,7 @@ struct integrator {
 
     virtual ~integrator() noexcept = default;
 
-    virtual constexpr void integrate(image_view out, integration_options opts, default_rng& gen) noexcept = 0;
+    virtual constexpr void integrate(image_view out, integration_settings opts, default_rng& gen) noexcept = 0;
 
 protected:
     std::shared_ptr<camera> m_camera{nullptr};

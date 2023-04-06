@@ -4,3 +4,15 @@
 [submodule "thirdparty/sfml"]
 	path = thirdparty/sfml
 	url = https://github.com/SFML/SFML
+[submodule "thirdparty/imgui-sfml"]
+	path = thirdparty/imgui-sfml
+	url = https://github.com/SFML/imgui-sfml
+[submodule "thirdparty/imgui"]
+	path = thirdparty/imgui
+	url = https://github.com/ocornut/imgui
+[submodule "thirdparty/fmt"]
+	path = thirdparty/fmt
+	url = https://github.com/fmtlib/fmt
+[submodule "thirdparty/spdlog"]
+	path = thirdparty/spdlog
+	url = https://github.com/gabime/spdlog

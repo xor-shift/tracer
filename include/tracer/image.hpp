@@ -60,7 +60,7 @@ struct basic_image {
         }
     }
 
-    constexpr void create(u32 width, u32 height) noexcept(noexcept(m_allocator.allocate(0))) {
+    constexpr void create(usize width, usize height) noexcept(noexcept(m_allocator.allocate(0))) {
         destroy();
 
         m_width = width;

@@ -11,7 +11,7 @@ struct pixel_integrator : task_integrator<> {
 protected:
     virtual constexpr auto kernel(vec2 xy, default_rng& gen) noexcept -> color = 0;
 
-    constexpr void task_processor(task_payload_type payload, integration_options opts, default_rng& gen) noexcept final override {
+    constexpr void task_processor(task_payload_type payload, integration_settings opts, default_rng& gen) noexcept final override {
         stf::random::erand48_distribution<real> dist{};
 
         vec2 dims(payload.image.width(), payload.image.height());

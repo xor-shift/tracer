@@ -15,6 +15,11 @@ struct triangle {
 
     constexpr auto intersect(ray const& ray, real best_t = infinity) const -> std::optional<intersection>;
 
+    constexpr auto intersect(ray const& ray, pixel_statistics& stats, real best_t = infinity) const -> std::optional<intersection> {
+        ++stats.shape_intersection_tests;
+        return intersect(ray, best_t);
+    }
+
     constexpr auto intersects(ray const& ray) const -> bool { return intersect(ray) != std::nullopt; }
 
     constexpr auto bounds() const -> std::pair<vec3, vec3> { return m_extents; }
