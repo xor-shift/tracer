@@ -40,6 +40,8 @@ struct disc {
 
     constexpr auto material_index() const -> u32 { return m_mat_idx; }
 
+    constexpr void set_material(u32 idx) { m_mat_idx = idx; }
+
 private:
     constexpr void get_surface_information(vec3 r_p, vec2& uv, vec3& dpdu, vec3& dpdv) const;
 

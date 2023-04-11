@@ -1,5 +1,7 @@
 #pragma once
 
+#include <stuff/ranvec.hpp>
+
 #include <tracer/material/material.hpp>
 
 namespace trc::materials {

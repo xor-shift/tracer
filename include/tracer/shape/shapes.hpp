@@ -17,4 +17,6 @@ using unbound_shape = std::variant<shapes::plane>;
 
 using shape = std::variant<shapes::sphere, shapes::disc, shapes::box, shapes::triangle, shapes::plane>;
 
+static_assert(concepts::shape<dyn_shape<bound_shape>>);
+
 }

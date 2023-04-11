@@ -148,7 +148,6 @@ struct fresnel_dielectric : material_base {
         return 0;
     }
 
-private:
     real m_n_i;
     real m_n_t;
 };

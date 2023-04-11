@@ -1,8 +1,10 @@
 #pragma once
 
 #include <stuff/ranvec.hpp>
+
 #include <tracer/intersection.hpp>
 #include <tracer/ray.hpp>
+#include <tracer/shape/shape.hpp>
 
 #include <optional>
 
@@ -49,6 +51,8 @@ struct box {
     constexpr auto surface_area() const -> real;
 
     constexpr auto material_index() const -> u32 { return m_mat_idx; }
+
+    constexpr void set_material(u32 idx) { m_mat_idx = idx; }
 
 private:
     std::pair<vec3, vec3> m_extents;

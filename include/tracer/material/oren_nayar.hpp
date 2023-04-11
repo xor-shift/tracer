@@ -2,6 +2,8 @@
 
 #include <tracer/material/material.hpp>
 
+#include <stuff/ranvec.hpp>
+
 namespace trc::materials {
 
 struct oren_nayar : material_base {
@@ -57,7 +59,6 @@ struct oren_nayar : material_base {
         return std::numbers::inv_pi_v<real> * (a + b * std::max<real>(0, std::cos(φ_i - φ_o)) * std::sin(α) * std::tan(β));
     }
 
-private:
     real m_sigma;
 };
 

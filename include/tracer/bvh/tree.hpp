@@ -1,14 +1,60 @@
 #pragma once
 
-#include <tracer/shape/shapes.hpp>
+#include <tracer/common.hpp>
+#include <tracer/intersection.hpp>
+#include <tracer/ray.hpp>
+#include <tracer/shape/box.hpp>
 
 namespace trc {
 
+struct tree_node {
+    virtual constexpr ~tree_node() = default;
+
+    virtual constexpr auto size() const -> usize = 0;
+
+    virtual constexpr auto child(usize n) -> tree_node* = 0;
+    virtual constexpr auto child(usize n) const -> const tree_node* = 0;
+
+    virtual constexpr auto parent() -> tree_node* = 0;
+    virtual constexpr auto parent() const -> const tree_node* = 0;
+};
+
+struct tree {
+    virtual constexpr ~tree() = default;
+
+    virtual constexpr auto root() -> tree_node* = 0;
+    virtual constexpr auto root() const -> const tree_node* = 0;
+};
+
 namespace detail {
 
+template<typename T, typename Fn>
+static constexpr auto compute_bounds(std::span<const T> objects, Fn&& bound_getter) -> std::pair<vec3, vec3> {
+    std::pair<vec3, vec3> bounds{vec3(std::numeric_limits<real>::infinity()), vec3(-std::numeric_limits<real>::infinity())};
+
+    auto iterate = [&bounds](std::pair<vec3, vec3> cur_bounds) {
+        auto [min_bound, max_bound] = cur_bounds;
+
+        bounds.first = min(bounds.first, min_bound);
+        bounds.first = min(bounds.first, max_bound);
+        bounds.second = max(bounds.second, min_bound);
+        bounds.second = max(bounds.second, max_bound);
+    };
+
+    for (T const& object: objects) {
+        iterate(std::invoke(bound_getter, object));
+    }
+
+    bounds.first = bounds.first * (1 + epsilon);
+    bounds.second = bounds.second * (1 + epsilon);
+
+    return bounds;
+}
+
 // this structure does not manage the child nodes on its own
-struct bvh_node {
-    constexpr bvh_node(std::vector<bound_shape> shapes, bvh_node* parent = nullptr, usize depth = 0)
+template<typename ShapeT>
+struct bvh_node : tree_node {
+    constexpr bvh_node(std::vector<ShapeT> shapes, bvh_node* parent = nullptr, usize depth = 0)
         : m_parent(parent)
         , m_depth(depth)
         , m_shapes(std::move(shapes)) {
@@ -20,20 +66,25 @@ struct bvh_node {
         return std::move(m_children);
     }
 
+    /// Call only while destructing a bunch of nodes.
+    constexpr auto extract_shapes() -> std::vector<ShapeT> {
+        return std::move(m_shapes);
+    }
+
     constexpr auto split(usize depth = 1) -> bool {
         if (depth == 0) {
             return false;
         }
 
-        std::vector<bound_shape> lhs_shapes{};
-        std::vector<bound_shape> rhs_shapes{};
+        std::vector<ShapeT> lhs_shapes{};
+        std::vector<ShapeT> rhs_shapes{};
 
         vec3 side_lengths = m_bounds.second - m_bounds.first;
         usize longest_side = side_lengths[0] > side_lengths[1] ? side_lengths[0] > side_lengths[2] ? 0 : 2 : side_lengths[1] > side_lengths[2] ? 1
                                                                                                                                                : 2;
         real threshold = (m_bounds.first + side_lengths / 2)[longest_side];
 
-        for (bound_shape const& shape: m_shapes) {
+        for (auto const& shape: m_shapes) {
             vec3 shape_center = VARIANT_CALL(shape, center);
             (shape_center[longest_side] > threshold ? rhs_shapes : lhs_shapes).emplace_back(shape);
         }
@@ -87,7 +138,7 @@ struct bvh_node {
     }
 
     constexpr auto intersect(ray const& ray, real best_t = infinity) const -> std::optional<intersection> {
-        pixel_statistics stats {};
+        pixel_statistics stats{};
         return intersect(ray, stats, best_t);
     }
 
@@ -95,7 +146,13 @@ struct bvh_node {
 
     constexpr auto children() const -> std::span<const bvh_node* const> { return {m_children.data(), m_children.size()}; }
 
-    constexpr auto parent() const -> bvh_node* { return m_parent; }
+    constexpr auto size() const -> usize override { return m_shapes.empty() ? 0 : 2; }
+
+    constexpr auto parent() const -> bvh_node* override { return m_parent; }
+    constexpr auto parent() -> bvh_node* override { return m_parent; }
+
+    constexpr auto child(usize n) const -> const bvh_node* override { return m_children[n]; }
+    constexpr auto child(usize n) -> bvh_node* override { return m_children[n]; }
 
 private:
     // consistency note: either m_shapes xor m_children are be allowed to be !empty() at a time
@@ -103,7 +160,7 @@ private:
     bvh_node* m_parent = nullptr;// non-owning, memoization
     usize m_depth = 0;           // memoization
 
-    std::vector<bound_shape> m_shapes{};
+    std::vector<ShapeT> m_shapes{};
 
     vec3 m_center{0, 0, 0};
     std::pair<vec3, vec3> m_bounds{{0, 0, 0}, {0, 0, 0}};
@@ -146,22 +203,25 @@ private:
 
 }// namespace detail
 
-struct bvh_tree final : dyn_shape {
-    constexpr bvh_tree(std::vector<bound_shape> shapes)
-        : m_root(new detail::bvh_node(std::move(shapes))) {
-        m_root->split(10);
-    }
+template<typename ShapeT>
+struct bvh_tree final : dyn_shape<ShapeT>, tree {
+private:
+    template<typename Fn>
+    constexpr void deconstruct_impl(Fn&& fn) {
+        if (m_root == nullptr) {
+            return;
+        }
 
-    constexpr ~bvh_tree() final override {
-        std::vector<detail::bvh_node*> destruct_list{m_root};
+        std::vector<ShapeT> ret {};
+        std::vector<detail::bvh_node<ShapeT>*> destruct_list{m_root};
         m_root = nullptr;
 
         for (usize i = 0;;) {
             bool did_a_thing = false;
 
             for (usize upto = destruct_list.size(); i < upto; i++) {
-                detail::bvh_node*& cur = destruct_list[i];
-                std::vector<detail::bvh_node*> cur_children = cur->extract_children();
+                detail::bvh_node<ShapeT>*& cur = destruct_list[i];
+                std::vector<detail::bvh_node<ShapeT>*> cur_children = cur->extract_children();
 
                 did_a_thing |= !cur_children.empty();
 
@@ -173,24 +233,71 @@ struct bvh_tree final : dyn_shape {
         }
 
         for (auto*& node: destruct_list) {
-            //node->detail::bvh_node::~bvh_node();
+            std::invoke(std::forward<Fn>(fn), node);
+
             delete node;
             node = nullptr;
         }
     }
 
+public:
+    constexpr bvh_tree() {}
+
+    constexpr ~bvh_tree() final override {
+        deconstruct_impl([](auto*) {});
+    }
+
     constexpr auto intersect(ray const& ray, real best_t = infinity) const -> std::optional<intersection> final override {
+        if (m_root == nullptr) {
+            return std::nullopt;
+        }
+
         return m_root->intersect(ray, best_t);
     }
 
     constexpr auto intersect(ray const& ray, pixel_statistics& stats, real best_t = infinity) const -> std::optional<intersection> final override {
+        if (m_root == nullptr) {
+            return std::nullopt;
+        }
+
         return m_root->intersect(ray, stats, best_t);
     }
 
-    constexpr auto intersects(ray const& ray) const -> bool final override { return m_root->intersects(ray); }
+    constexpr auto intersects(ray const& ray) const -> bool final override {
+        if (m_root == nullptr) {
+            return false;
+        }
+
+        return m_root->intersects(ray);
+    }
+
+    constexpr auto root() -> detail::bvh_node<ShapeT>* override { return m_root; }
+    constexpr auto root() const -> const detail::bvh_node<ShapeT>* override { return m_root; }
+
+    constexpr void construct_tree(std::vector<ShapeT> shapes, usize splits) final override {
+        m_root = new detail::bvh_node(std::move(shapes));
+        m_root->split(splits);
+    }
+
+    constexpr auto deconstruct_tree() -> std::vector<ShapeT> final override {
+        if (m_root == nullptr) {
+            return {};
+        }
+
+        std::vector<ShapeT> ret {};
+
+        deconstruct_impl([&ret](detail::bvh_node<ShapeT>* node) {
+            std::vector<ShapeT> node_shapes = node->extract_shapes();
+            ret.reserve(ret.size() + node_shapes.size());
+            std::copy(node_shapes.begin(), node_shapes.end(), std::back_inserter(ret));
+        });
+
+        return ret;
+    }
 
 private:
-    detail::bvh_node* m_root = nullptr;
+    detail::bvh_node<ShapeT>* m_root = nullptr;
+
 };
 
 }// namespace trc

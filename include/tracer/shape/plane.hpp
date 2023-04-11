@@ -2,6 +2,7 @@
 
 #include <tracer/intersection.hpp>
 #include <tracer/ray.hpp>
+#include <tracer/shape/shape.hpp>
 
 #include <optional>
 
@@ -27,6 +28,8 @@ struct plane {
     constexpr auto normal_at(vec3 pt) const -> vec3 { return m_normal; }
 
     constexpr auto material_index() const -> u32 { return m_mat_idx; }
+
+    constexpr void set_material(u32 idx) { m_mat_idx = idx; }
 
 private:
     vec3 m_center;

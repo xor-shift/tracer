@@ -42,7 +42,7 @@ protected:
                 real rr_gen = dist(gen);
 
                 // probability to continue
-                real prob = std::max(base_rr_prob, std::clamp<real>(abs_attenuation, 0, 1));
+                real prob = std::max(base_rr_prob, std::clamp<real>(abs_attenuation, 0, 1 - depth * real(0.1)));
 
                 if (rr_gen < prob) {
                     attenuation = attenuation / (1 - prob);

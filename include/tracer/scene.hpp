@@ -7,17 +7,7 @@
 namespace trc {
 
 struct scene {
-    constexpr scene(std::vector<shape> const& shapes, std::vector<material> materials, std::vector<std::unique_ptr<dyn_shape>>&& dyn_shapes = {})
-        : m_materials(std::move(materials))
-        , m_dyn_shapes(std::move(dyn_shapes)) {
-        for (shape s: shapes) {
-            auto visitor = stf::multi_visitor{
-              [this]<concepts::bound_shape T>(T&& s) { m_bound_shapes.emplace_back(std::move(s)); },
-              [this]<concepts::unbound_shape T>(T&& s) { m_unbound_shapes.emplace_back(std::move(s)); },
-            };
-            std::visit(visitor, std::move(s));
-        }
-    }
+    constexpr scene() {}
 
     template<typename Fn>
     constexpr auto for_each_shape(Fn&& fn) const {
@@ -29,8 +19,8 @@ struct scene {
             std::visit(std::forward<Fn>(fn), s);
         }
 
-        for (auto const& s: m_dyn_shapes) {
-            std::invoke(std::forward<Fn>(fn), *s);
+        if (m_bvh) {
+            std::invoke(std::forward<Fn>(fn), *m_bvh);
         }
     }
 
@@ -51,7 +41,12 @@ struct scene {
         return best_isection;
     }
 
-    constexpr auto material(usize index) const -> material const& {
+    constexpr auto add_material(material mat) -> u32 {
+        m_materials.emplace_back(std::move(mat));
+        return static_cast<u32>(m_materials.size() - 1);
+    }
+
+    constexpr auto material(u32 index) const -> material const& {
         return m_materials[index];
     }
 
@@ -88,12 +83,57 @@ struct scene {
         return t;
     }
 
-private:
+    constexpr void append_shape(bound_shape shape, usize split_threshold = 8, usize split_depth = 10) {
+        m_bound_shapes.emplace_back(std::move(shape));
+
+        append_if_over_threshold(split_threshold, split_depth);
+    }
+
+    constexpr void append_shape(unbound_shape shape) {
+        m_unbound_shapes.emplace_back(std::move(shape));
+    }
+
+    constexpr void append_shapes(std::vector<bound_shape> shapes, usize split_threshold = 8, usize split_depth = 12) {
+        m_bound_shapes.reserve(m_bound_shapes.size() + shapes.size());
+        std::copy(shapes.begin(), shapes.end(), std::back_inserter(m_bound_shapes));
+
+        append_if_over_threshold(split_threshold, split_depth);
+    }
+
+    constexpr void append_shapes(std::vector<unbound_shape> shapes) {
+        std::copy(shapes.begin(), shapes.end(), std::back_inserter(m_unbound_shapes));
+    }
+
+    template<typename BVHType>
+    void reconstruct_bvh(usize split_depth = 12) {
+        if (m_bvh != nullptr) {
+            std::vector<bound_shape> existing_shapes = m_bvh->deconstruct_tree();
+            m_bound_shapes.reserve(m_bound_shapes.size() + existing_shapes.size());
+            std::copy(existing_shapes.begin(), existing_shapes.end(), std::back_inserter(m_bound_shapes));
+        }
+
+        m_bvh = std::make_shared<BVHType>();
+        m_bvh->construct_tree(std::move(m_bound_shapes), split_depth);
+    }
+
     std::vector<trc::material> m_materials;
 
-    std::vector<std::unique_ptr<dyn_shape>> m_dyn_shapes{};
     std::vector<bound_shape> m_bound_shapes{};
+    std::shared_ptr<dyn_shape<bound_shape>> m_bvh = nullptr;
+
     std::vector<unbound_shape> m_unbound_shapes{};
+
+private:
+    constexpr void append_if_over_threshold(usize split_threshold, usize split_depth) {
+        if (m_bvh == nullptr) [[unlikely]] {
+            // throw?
+            return;
+        }
+
+        if (m_bound_shapes.size() >= split_threshold) {
+            m_bvh->append(std::move(m_bound_shapes), split_depth);
+        }
+    }
 };
 
 }// namespace trc

@@ -53,10 +53,6 @@ struct material_base {
         return std::visit(visitor, m_emission);
     }
 
-protected:
-    albedo_source m_albedo;
-    albedo_source m_emission{vec3(0)};
-
     constexpr auto albedo_at(intersection const& isection) const -> color {
         return sample_albedo_source(m_albedo, isection);
     }
@@ -64,6 +60,9 @@ protected:
     constexpr auto le_at(intersection const& isection) const -> color {
         return sample_albedo_source(m_emission, isection);
     }
+
+    albedo_source m_albedo;
+    albedo_source m_emission{vec3(0)};
 };
 
 }// namespace trc

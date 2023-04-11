@@ -1,9 +1,12 @@
 #pragma once
 
-#include <stuff/expected.hpp>
-#include <stuff/ranvec.hpp>
 #include <tracer/intersection.hpp>
 #include <tracer/ray.hpp>
+#include <tracer/shape/shape.hpp>
+#include <tracer/shape/detail/util.hpp>
+
+#include <stuff/expected.hpp>
+#include <stuff/ranvec.hpp>
 
 #include <optional>
 
@@ -37,6 +40,10 @@ struct sphere {
         return 4 * std::numbers::pi_v<real> * m_radius;
     }
 
+    constexpr auto material_index() const -> u32 { return m_mat_idx; }
+
+    constexpr void set_material(u32 idx) { m_mat_idx = idx; }
+
 private:
     vec3 m_center;
     real m_radius;
@@ -47,8 +54,6 @@ private:
     constexpr void get_surface_information(vec3 local_pt, vec2& uv, vec3& dpdu, vec3& dpdv) const;
 
     constexpr auto normal_at(vec3 pt) const -> vec3;
-
-    constexpr auto material_index() const -> u32 { return m_mat_idx; }
 };
 
 static_assert(concepts::bound_shape<sphere>);

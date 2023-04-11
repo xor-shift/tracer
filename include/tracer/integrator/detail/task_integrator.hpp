@@ -8,8 +8,7 @@ namespace trc::detail {
 
 struct default_task {
     std::pair<usize, usize> xy_start;
-    image_view chunk;
-    image_view image;
+    std::pair<usize, usize> span;
 };
 
 struct default_task_generator {
@@ -26,8 +25,7 @@ struct default_task_generator {
         , m_x_tasks(other.m_x_tasks)
         , m_y_tasks(other.m_y_tasks) {}
 
-    constexpr void set_image(image_view image) {
-        m_image = image;
+    constexpr void set_image(image_like& image) {
         m_x_tasks = image.width() / m_chunk_size.first + (image.width() % m_chunk_size.first != 0);
         m_y_tasks = image.height() / m_chunk_size.second + (image.height() % m_chunk_size.second != 0);
     }
@@ -53,12 +51,9 @@ struct default_task_generator {
         usize start_col = (task % m_x_tasks) * m_chunk_size.first;
         usize start_row = (task / m_x_tasks) * m_chunk_size.second;
 
-        image_view image(m_image, start_col, start_row, m_chunk_size.first, m_chunk_size.second);
-
         return default_task{
           .xy_start{start_col, start_row},
-          .chunk = image,
-          .image = m_image,
+          .span{m_chunk_size},
         };
     }
 
@@ -86,8 +81,7 @@ struct c4d_task_generator {
         , m_x_tasks(other.m_x_tasks)
         , m_y_tasks(other.m_y_tasks) {}
 
-    constexpr void set_image(image_view image) {
-        m_image = image;
+    constexpr void set_image(image_like& image) {
         m_x_tasks = image.width() / m_chunk_size.first + (image.width() % m_chunk_size.first != 0);
         m_y_tasks = image.height() / m_chunk_size.second + (image.height() % m_chunk_size.second != 0);
     }
@@ -100,7 +94,7 @@ struct c4d_task_generator {
 
         std::unique_lock lock{m_task_gen_mutex};
 
-        constexpr std::pair<isize, isize> dir_offsets[] {
+        constexpr std::pair<isize, isize> dir_offsets[]{
           {1, 0},
           {0, -1},
           {-1, 0},
@@ -140,12 +134,9 @@ struct c4d_task_generator {
         usize start_col = x_task * m_chunk_size.first;
         usize start_row = y_task * m_chunk_size.second;
 
-        image_view image(m_image, start_col, start_row, m_chunk_size.first, m_chunk_size.second);
-
         return default_task{
           .xy_start{start_col, start_row},
-          .chunk = image,
-          .image = m_image,
+          .span{m_chunk_size},
         };
     }
 
@@ -194,7 +185,7 @@ struct task_integrator : integrator {
         : integrator(camera, scene)
         , m_task_generator(generator) {}
 
-    constexpr void integrate(image_view out, integration_settings opts, default_rng& gen) noexcept final override {
+    constexpr void integrate(image_like& out, integration_settings opts, default_rng& gen) noexcept final override {
         m_task_generator.set_image(out);
 
         usize n_threads;
@@ -209,12 +200,12 @@ struct task_integrator : integrator {
 #endif
         }
 
-        auto consume_task = [this, opts, &gen] constexpr {
+        auto consume_task = [this, opts, &gen, &out] constexpr {
             auto task_opt = m_task_generator.next_task();
             if (!task_opt)
                 return false;
 
-            task_processor(*task_opt, opts, gen);
+            task_processor(*task_opt, out, opts, gen);
             return true;
         };
 
@@ -232,7 +223,7 @@ struct task_integrator : integrator {
 
         m_task_generator.reset();
 
-        auto worker = [this, consume_task, &wg, out, opts](usize thread_id, usize stride, default_rng gen) {
+        auto worker = [this, consume_task, &wg, &out, opts](usize thread_id, usize stride, default_rng gen) {
             stf::scope::scope_exit wg_guard{[&wg] { wg.done(); }};
 
             for (;;) {
@@ -260,10 +251,10 @@ struct task_integrator : integrator {
     }
 
 protected:
-    virtual constexpr void task_processor(task_payload_type payload, integration_settings opts, default_rng& gen) noexcept = 0;
+    virtual constexpr void task_processor(task_payload_type payload, image_like& out, integration_settings opts, default_rng& gen) noexcept = 0;
 
 private:
     task_generator_type m_task_generator;
 };
 
-}
+}// namespace trc::detail

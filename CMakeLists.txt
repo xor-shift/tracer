@@ -35,6 +35,8 @@ if (NOT TARGET stuff_trilang)
     add_subdirectory(thirdparty/stuff/libs/trilang ${CMAKE_CURRENT_BINARY_DIR}/libs/trilang)
 endif ()
 
+set(TRACER_CHECK_SELF_CONTAINMENT ON)
+
 set(IMGUI_SFML_FIND_SFML OFF)
 set(IMGUI_DIR "${CMAKE_SOURCE_DIR}/thirdparty/imgui")
 set(SPDLOG_FMT_EXTERNAL ON)
@@ -44,13 +46,27 @@ add_subdirectory(thirdparty/spdlog)
 add_subdirectory(thirdparty/sfml)
 add_subdirectory(thirdparty/imgui-sfml)
 
-add_executable(tracer main.cpp)
+add_executable(tracer main.cpp src/tracer/run/sfml/main.cpp)
 target_link_libraries(tracer
         SFML::System SFML::Window SFML::Graphics
         ImGui-SFML::ImGui-SFML
         fmt::fmt spdlog::spdlog
         stuff_core stuff_blas stuff_random stuff_ranvec stuff_qoi stuff_thread stuff_trilang)
 target_include_directories(tracer PRIVATE include)
+
+if (TRACER_CHECK_SELF_CONTAINMENT)
+    file(GLOB_RECURSE tracer_sc_checks_src ${CMAKE_SOURCE_DIR}/src/sc_checks/*.cpp)
+
+    add_executable(tracer_sc_checks ${tracer_sc_checks_src})
+
+    target_link_libraries(tracer_sc_checks
+            SFML::System SFML::Window SFML::Graphics
+            ImGui-SFML::ImGui-SFML
+            fmt::fmt spdlog::spdlog
+            stuff_core stuff_blas stuff_random stuff_ranvec stuff_qoi stuff_thread stuff_trilang)
+
+    target_include_directories(tracer_sc_checks PRIVATE include)
+endif()
 
 if (CMAKE_BUILD_TYPE STREQUAL "Debug" OR CMAKE_BUILD_TYPE STREQUAL "RelWithDebInfo")
     target_compile_options(${PROJECT_NAME} PUBLIC -fsanitize=address -fsanitize=undefined)

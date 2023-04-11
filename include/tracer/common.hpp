@@ -2,6 +2,13 @@
 
 #include <stuff/blas.hpp>
 #include <stuff/core.hpp>
+#include <stuff/random.hpp>
+
+#include <variant>
+
+#ifndef TRACER_USING_SFML
+# define TRACER_USING_SFML 0
+#endif
 
 namespace trc {
 
@@ -113,4 +120,4 @@ constexpr void assert_orthogonal(vec3 v_0, vec3 v_1) noexcept {
     std::visit([&]<typename T>(T&& v) { return std::forward<T>(v)._name(__VA_ARGS__); }, _obj)
 
 #define VARIANT_MEMBER(_obj, _name) \
-    std::visit([&]<typename T>(T&& v) { return std::forward<T>(v)._name; }, _obj)
+    std::visit([&]<typename T>(T&& v) -> auto&& { return std::forward<T>(v)._name; }, _obj)

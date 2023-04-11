@@ -1,8 +1,10 @@
 #pragma once
 
-#include <stuff/ranvec.hpp>
 #include <tracer/intersection.hpp>
 #include <tracer/ray.hpp>
+#include <tracer/shape/shape.hpp>
+
+#include <stuff/ranvec.hpp>
 
 #include <optional>
 
@@ -30,6 +32,10 @@ struct triangle {
     constexpr auto sample_surface(Gen&) const -> intersection;
 
     constexpr auto surface_area() const -> real { return m_surface_area; }
+
+    constexpr auto material_index() const -> u32 { return m_mat_idx; }
+
+    constexpr void set_material(u32 idx) { m_mat_idx = idx; }
 
 private:
     std::array<vec3, 3> m_vertices;
