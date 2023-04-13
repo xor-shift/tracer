@@ -83,7 +83,7 @@ struct scene {
         return t;
     }
 
-    constexpr void append_shape(bound_shape shape, usize split_threshold = 8, usize split_depth = 10) {
+    constexpr void append_shape(bound_shape shape, usize split_threshold = 8, usize split_depth = 12) {
         m_bound_shapes.emplace_back(std::move(shape));
 
         append_if_over_threshold(split_threshold, split_depth);

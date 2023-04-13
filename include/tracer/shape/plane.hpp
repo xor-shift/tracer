@@ -31,11 +31,21 @@ struct plane {
 
     constexpr void set_material(u32 idx) { m_mat_idx = idx; }
 
+    friend constexpr void swap(plane&, plane&);
+
 private:
     vec3 m_center;
     vec3 m_normal;
     u32 m_mat_idx;
 };
+
+constexpr void swap(plane& lhs, plane& rhs) {
+    using std::swap;
+
+    swap(lhs.m_center, rhs.m_center);
+    swap(lhs.m_normal, rhs.m_normal);
+    swap(lhs.m_mat_idx, rhs.m_mat_idx);
+}
 
 static_assert(concepts::unbound_shape<plane>);
 

@@ -12,6 +12,34 @@ namespace trc {
 
 constexpr auto check_bounds_intersection(ray const& ray, std::pair<vec3, vec3> const& extents) -> bool;
 
+struct bounding_box {
+    std::pair<vec3, vec3> bounds {vec3(std::numeric_limits<real>::infinity()), vec3(-std::numeric_limits<real>::infinity())};
+
+    constexpr void bump(vec3 vec) {
+        bounds.first = stf::blas::min(bounds.first, vec);
+        bounds.second = stf::blas::max(bounds.second, vec);
+    }
+
+    constexpr void bump(bounding_box const& other) {
+        bump(other.bounds.first);
+        bump(other.bounds.second);
+    }
+
+    constexpr void bump(std::pair<vec3, vec3> const& bounds) {
+        bump(bounds.first);
+        bump(bounds.second);
+    }
+
+    constexpr auto intersects(ray const& ray) const -> bool {
+        return check_bounds_intersection(ray, bounds);
+    }
+
+    constexpr void extend_a_little() {
+        bounds.first = bounds.first * (1 + epsilon);
+        bounds.second = bounds.second * (1 + epsilon);
+    }
+};
+
 }// namespace trc
 
 
@@ -54,6 +82,8 @@ struct box {
 
     constexpr void set_material(u32 idx) { m_mat_idx = idx; }
 
+    friend constexpr void swap(box&, box&);
+
 private:
     std::pair<vec3, vec3> m_extents;
 
@@ -65,6 +95,13 @@ private:
 
     friend constexpr auto ::trc::check_bounds_intersection(ray const& ray, std::pair<vec3, vec3> const& extents) -> bool;
 };
+
+constexpr void swap(box& lhs, box& rhs) {
+    using std::swap;
+
+    swap(lhs.m_extents, rhs.m_extents);
+    swap(lhs.m_mat_idx, rhs.m_mat_idx);
+}
 
 static_assert(concepts::bound_shape<box>);
 

@@ -51,7 +51,7 @@ struct dyn_shape {
 
     virtual constexpr void set_material(u32 idx) {}
 
-    virtual constexpr void construct_tree(std::vector<ShapeT> shapes, usize splits) = 0;
+    virtual constexpr void construct_tree(std::vector<ShapeT> shapes, usize depth) = 0;
     virtual constexpr auto deconstruct_tree() -> std::vector<ShapeT> = 0;
 
     virtual constexpr void append(std::vector<ShapeT> shapes, usize splits) {

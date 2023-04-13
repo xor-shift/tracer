@@ -44,6 +44,8 @@ struct sphere {
 
     constexpr void set_material(u32 idx) { m_mat_idx = idx; }
 
+    friend constexpr void swap(sphere&, sphere&);
+
 private:
     vec3 m_center;
     real m_radius;
@@ -55,6 +57,14 @@ private:
 
     constexpr auto normal_at(vec3 pt) const -> vec3;
 };
+
+constexpr void swap(sphere& lhs, sphere& rhs) {
+    using std::swap;
+
+    swap(lhs.m_center, rhs.m_center);
+    swap(lhs.m_radius, rhs.m_radius);
+    swap(lhs.m_mat_idx, rhs.m_mat_idx);
+}
 
 static_assert(concepts::bound_shape<sphere>);
 

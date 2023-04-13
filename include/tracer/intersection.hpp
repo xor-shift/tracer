@@ -12,29 +12,23 @@ struct intersection {
     constexpr intersection& operator=(intersection const&) = default;
     constexpr intersection& operator=(intersection&&) = default;
 
-    constexpr intersection(u32 mat_idx, vec3 wo, real t, vec3 isection_point, vec2 uv, std::pair<vec3, vec3> dpduv)
+    constexpr intersection(u32 mat_idx, vec3 wo, real t, vec3 isection_point, vec2 uv, std::pair<vec3, vec3> dpduv, std::optional<vec3> normal = std::nullopt)
         : wo(wo)
         , t(t)
         , isection_point(isection_point)
         , uv(uv)
         , dpduv(dpduv)
         , material_index(mat_idx) {
-        set_surface_derivatives(dpduv);
-        local_wo = vector_to_refl_space(wo);
-    }
-
-    constexpr void set_surface_derivatives(std::pair<vec3, vec3> dpduv) {
-        this->dpduv = dpduv;
-        st.first = normalize(dpduv.first);
-        normal = normalize(cross(dpduv.first, dpduv.second));
-        st.second = cross(normal, st.first);
-
-        assert_orthogonal(st.first, st.second);
-        assert_orthogonal(st.first, normal);
-        assert_normal(normal);
+        if (normal == std::nullopt) {
+            compute_reflection_basis();
+        } else {
+            this->normal = *normal;
+        }
     }
 
     constexpr auto vector_to_refl_space(vec3 vec) const -> vec3 {
+        lazy_compute_reflection_basis();
+
         auto const& [s, t] = st;
 
         //mat3x3 mat{s[0], s[1], s[2], t[0], t[1], t[2], normal[0], normal[1], normal[2]};
@@ -44,6 +38,8 @@ struct intersection {
     }
 
     constexpr auto vector_from_refl_space(vec3 vec) const -> vec3 {
+        lazy_compute_reflection_basis();
+
         // orthonormal matrices' transposes are their inverses
 
         auto const& [s, t] = st;
@@ -59,7 +55,7 @@ struct intersection {
     }
 
     constexpr auto get_global_wo() const -> vec3 { return wo; }
-    constexpr auto get_local_wo() const -> vec3 { return local_wo; }
+    constexpr auto get_local_wo() const -> vec3 { return vector_to_refl_space(wo); }
 
     constexpr auto get_global_normal() const -> vec3 { return normal; }
     constexpr auto get_local_normal() const -> vec3 { return vec3{0, 0, 1}; }
@@ -80,16 +76,36 @@ struct intersection {
     }
 
     vec3 wo;
-    vec3 local_wo;
     real t;
 
     vec3 isection_point;        // global
     vec2 uv;                    // parametric
     std::pair<vec3, vec3> dpduv;// global
-    vec3 normal;                // global
-    std::pair<vec3, vec3> st;   // global
+    mutable vec3 normal;                // global
+    mutable std::pair<vec3, vec3> st;   // global
 
     u32 material_index;
+    mutable bool reflection_basis_computed = false;
+
+private:
+    constexpr void compute_reflection_basis() const {
+        st.first = normalize(dpduv.first);
+        normal = normalize(cross(dpduv.first, dpduv.second));
+        st.second = cross(normal, st.first);
+
+        assert_orthogonal(st.first, st.second);
+        assert_orthogonal(st.first, normal);
+        assert_normal(normal);
+
+        reflection_basis_computed = true;
+    }
+
+    constexpr void lazy_compute_reflection_basis() const {
+        if (reflection_basis_computed) {
+            return;
+        }
+        compute_reflection_basis();
+    }
 };
 
 struct interaction {

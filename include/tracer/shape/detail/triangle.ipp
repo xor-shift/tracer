@@ -8,7 +8,6 @@ constexpr triangle::triangle(u32 mat_idx, std::array<vec3, 3> vertices) noexcept
 
 constexpr triangle::triangle(u32 mat_idx, std::array<vec3, 3> vertices, std::array<vec2, 3> vertex_uvs) noexcept
     : m_vertices(vertices)
-    , m_edges({vertices[1] - vertices[0], vertices[2] - vertices[0]})
     , m_vertex_uvs(vertex_uvs)
     , m_center(compute_center(vertices, center_type::incenter))
     , m_mat_idx(mat_idx) {
@@ -24,13 +23,15 @@ constexpr triangle::triangle(u32 mat_idx, std::array<vec3, 3> vertices, std::arr
 
     m_extents.first = min_extent;
     m_extents.second = max_extent;
-
-    m_surface_area = abs(cross(m_edges[0], m_edges[1])) / 2;
 }
 
 constexpr auto triangle::intersect(ray const& ray, real best_t) const -> std::optional<intersection> {
-    vec3 h = cross(ray.direction, m_edges[1]);
-    real a = dot(m_edges[0], h);
+    //auto const& [edge_0, edge_1] = m_edges;
+    vec3 edge_0 = m_vertices[1] - m_vertices[0];
+    vec3 edge_1 = m_vertices[2] - m_vertices[0];
+
+    vec3 h = cross(ray.direction, edge_1);
+    real a = dot(edge_0, h);
 
     if (std::abs(a) <= epsilon)
         return std::nullopt;
@@ -42,18 +43,18 @@ constexpr auto triangle::intersect(ray const& ray, real best_t) const -> std::op
     if (u < 0 || u > 1)
         return std::nullopt;
 
-    vec3 q = cross(s, m_edges[0]);
+    vec3 q = cross(s, edge_0);
     real v = f * dot(ray.direction, q);
     if (v < 0 || u + v > 1)
         return std::nullopt;
 
-    real t = f * dot(m_edges[1], q);
+    real t = f * dot(edge_1, q);
     if (t <= epsilon)
         return std::nullopt;
 
     vec3 global_pt = ray.origin + t * ray.direction;
 
-    return intersection(m_mat_idx, -ray.direction, t, global_pt, {u, v}, {m_edges[0], m_edges[1]});
+    return intersection(m_mat_idx, -ray.direction, t, global_pt, {u, v}, {edge_0, edge_1});
 }
 
 constexpr auto triangle::compute_center(std::array<vec3, 3> const& vertices, center_type type) -> vec3 {

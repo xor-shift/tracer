@@ -18,12 +18,15 @@
 
 namespace trc {
 
-static auto read_stl(std::filesystem::path filename, usize mat_idx, mat4x4 transform = identity_matrix<real, 4, matrix>()) -> std::vector<bound_shape> {
+template<std::unsigned_integral IndexType = u32>
+static auto read_stl(std::filesystem::path filename, u32 mat_idx, mat4x4 transform = identity_matrix<real, 4, matrix>()) -> shapes::mesh<IndexType> {
     std::ifstream stl_file(filename);
     stf::trilang::stl::binary_stream triangle_stream{std::istreambuf_iterator<char>(stl_file), std::istreambuf_iterator<char>()};
 
-    std::vector<bound_shape> shapes{};
-    auto it = std::back_inserter(shapes);
+    //std::vector<bound_shape> shapes{};
+    //auto it = std::back_inserter(shapes);
+
+    shapes::mesh<IndexType> mesh{mat_idx};
 
     for (;;) {
         auto res = triangle_stream.next();
@@ -31,14 +34,23 @@ static auto read_stl(std::filesystem::path filename, usize mat_idx, mat4x4 trans
             break;
         }
 
-        vec3 v_0 = homogeneous_to_cartesian(transform * vec4{res->vertices[0][0], res->vertices[0][1], res->vertices[0][2], 1});
-        vec3 v_1 = homogeneous_to_cartesian(transform * vec4{res->vertices[1][0], res->vertices[1][1], res->vertices[1][2], 1});
-        vec3 v_2 = homogeneous_to_cartesian(transform * vec4{res->vertices[2][0], res->vertices[2][1], res->vertices[2][2], 1});
+        // vec3 v_0 = homogeneous_to_cartesian(transform * vec4{res->vertices[0][0], res->vertices[0][1], res->vertices[0][2], 1});
+        // vec3 v_1 = homogeneous_to_cartesian(transform * vec4{res->vertices[1][0], res->vertices[1][1], res->vertices[1][2], 1});
+        // vec3 v_2 = homogeneous_to_cartesian(transform * vec4{res->vertices[2][0], res->vertices[2][1], res->vertices[2][2], 1});
 
-        *it++ = shapes::triangle(mat_idx, {v_0, v_1, v_2});
+        vec3 v_0{res->vertices[0][0], res->vertices[0][1], res->vertices[0][2]};
+        vec3 v_1{res->vertices[1][0], res->vertices[1][1], res->vertices[1][2]};
+        vec3 v_2{res->vertices[2][0], res->vertices[2][1], res->vertices[2][2]};
+
+        mesh.push_triangle({v_0, v_1, v_2});
+
+        //*it++ = shapes::triangle(mat_idx, {v_0, v_1, v_2});
     }
 
-    return shapes;
+    mesh.transform(transform);
+    mesh.finish_construction();
+
+    return mesh;
 }
 
 static auto get_scene_test() -> scene {
@@ -92,7 +104,7 @@ static auto get_scene_test() -> scene {
     };
 
     mat4x4 teapot_mat_0 = homogeneous_transformation_matrix<real, matrix>(teapot_transformation_0);
-    scene.append_shapes(read_stl("Utah_teapot_(solid).stl", midx_glass, teapot_mat_0));
+    scene.append_shape(read_stl<u16>("Utah_teapot_(solid).stl", midx_glass, teapot_mat_0));
 
     homogenous_transformation<real> teapot_transformation_1{
       .rotation{std::numbers::pi_v<real> * -90 / 180, 0, std::numbers::pi_v<real> * 45 / 180},
@@ -101,7 +113,7 @@ static auto get_scene_test() -> scene {
     };
 
     mat4x4 teapot_mat_1 = homogeneous_transformation_matrix<real, matrix>(teapot_transformation_1);
-    scene.append_shapes(read_stl("Utah_teapot_(solid).stl", midx_mirror, teapot_mat_1));
+    scene.append_shape(read_stl<u16>("Utah_teapot_(solid).stl", midx_mirror, teapot_mat_1));
 
     std::vector<unbound_shape> unbound_shapes{
       shapes::plane(midx_red, {-2.8, 0, 10}, {1, 0, 0}),   // left
@@ -112,7 +124,7 @@ static auto get_scene_test() -> scene {
     };
 
     scene.append_shapes(std::move(unbound_shapes));
-    scene.reconstruct_bvh<bvh_tree<bound_shape>>(10);
+    scene.reconstruct_bvh<binary_bvh<bound_shape>>(12);
 
     return scene;
 }
@@ -359,7 +371,6 @@ void sfml_program::save_to_file(std::string_view filename) {
     std::chrono::time_point tp_1 = std::chrono::system_clock::now();
 
     spdlog::info("wrote to \"{}\" in {} seconds", filename, std::chrono::duration_cast<std::chrono::microseconds>(tp_1 - tp_0).count() / 1000000.);
-
 }
 
 void sfml_program::gui_menu_bar() {

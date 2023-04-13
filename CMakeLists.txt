@@ -35,7 +35,7 @@ if (NOT TARGET stuff_trilang)
     add_subdirectory(thirdparty/stuff/libs/trilang ${CMAKE_CURRENT_BINARY_DIR}/libs/trilang)
 endif ()
 
-set(TRACER_CHECK_SELF_CONTAINMENT ON)
+set(TRACER_CHECK_SELF_CONTAINMENT OFF)
 
 set(IMGUI_SFML_FIND_SFML OFF)
 set(IMGUI_DIR "${CMAKE_SOURCE_DIR}/thirdparty/imgui")
