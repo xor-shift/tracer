@@ -78,11 +78,11 @@ struct intersection {
     vec3 wo;
     real t;
 
-    vec3 isection_point;        // global
-    vec2 uv;                    // parametric
-    std::pair<vec3, vec3> dpduv;// global
-    mutable vec3 normal;                // global
-    mutable std::pair<vec3, vec3> st;   // global
+    vec3 isection_point;             // global
+    vec2 uv;                         // parametric
+    std::pair<vec3, vec3> dpduv;     // global
+    mutable vec3 normal;             // global
+    mutable std::pair<vec3, vec3> st;// global
 
     u32 material_index;
     mutable bool reflection_basis_computed = false;

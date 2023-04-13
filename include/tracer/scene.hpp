@@ -65,7 +65,7 @@ struct scene {
     constexpr auto visibility_check(vec3 a, vec3 b) const -> bool {
         real dist = abs(b - a);
         vec3 dir = (b - a) / dist;
-        ray test_ray(a + dir * 0.0001, dir);
+        ray test_ray(a + dir * epsilon, dir);
 
         intersection isection;
         if (auto isection_res = intersect(test_ray); !isection_res) {
@@ -74,7 +74,7 @@ struct scene {
             isection = *isection_res;
         }
 
-        auto t = isection.t + 0.01 >= dist;
+        auto t = isection.t * (1 + epsilon) >= dist;
 
         if (!t) {
             std::ignore = std::ignore;

@@ -49,7 +49,7 @@ constexpr void disc::get_surface_information(vec3 p, vec2& uv, vec3& dpdu, vec3&
 
     dpdu = ortho_u;
     dpdv = ortho_v;
-    uv = vec2(dot(ortho_u, p), dot(ortho_v, p)) / m_radius * 0.5 + vec2(0.5);
+    uv = vec2(dot(ortho_u, p), dot(ortho_v, p)) / m_radius * real(0.5) + vec2(0.5);
 
     // we imagine the disc to be centered around the origin
     //

@@ -39,13 +39,40 @@ private:
     enum class camera_type : int {
         pinhole = 0,
         environment = 1,
+        orthographic_raw = 2,
+        frustum_raw = 3,
+        orthographic = 4,
+        frustum = 5,
     };
 
     struct camera_settings {
-        camera_type type;
-        real fov;
-        vec3 center;
-        vec3 rotation;
+        camera_type type = camera_type::pinhole;
+
+        // common
+
+        vec3 center{};
+
+        // pinhole, frustum
+
+        real fov = 80;
+
+        // pinhole, orthographic, frustum
+
+        vec3 rotation{};
+
+        // orthographic
+
+        vec3 ray_rotation{};
+        real physical_width = 5;
+
+        // orthographic_raw and frustum_raw
+
+        real left = -5;
+        real right = 5;
+        real bottom = -5;
+        real top = 5;
+        real near = 0;
+        real far = 5;
 
         auto operator()(sf::Vector2u window_dimensions) const -> std::shared_ptr<camera>;
     };
@@ -65,12 +92,7 @@ private:
       .integrator_settings = {
         .samples = 1,
       },
-      .camera_settings = {
-        .type = camera_type::pinhole,
-        .fov = 80,
-        .center{0, 0, 0},
-        .rotation{0, 0, 0},
-      },
+      .camera_settings = {},
     };
 
     std::shared_ptr<scene> m_scene = nullptr;
@@ -111,6 +133,7 @@ private:
     void save_to_file(std::string_view filename);
 
     void gui_menu_bar();
+    auto gui_render_camera_editor() -> bool;
     void gui_render_settings();
     auto gui_render_albedo_source_editor(albedo_source& source) -> bool;
     auto gui_render_material_editor() -> bool;

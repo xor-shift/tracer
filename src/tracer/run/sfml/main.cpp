@@ -4,6 +4,8 @@
 
 #include <tracer/bvh/tree.hpp>
 #include <tracer/camera/envrionment.hpp>
+#include <tracer/camera/orthographic.hpp>
+#include <tracer/camera/perspective.hpp>
 #include <tracer/camera/pinhole.hpp>
 #include <tracer/image.hpp>
 #include <tracer/imgui.hpp>
@@ -34,17 +36,11 @@ static auto read_stl(std::filesystem::path filename, u32 mat_idx, mat4x4 transfo
             break;
         }
 
-        // vec3 v_0 = homogeneous_to_cartesian(transform * vec4{res->vertices[0][0], res->vertices[0][1], res->vertices[0][2], 1});
-        // vec3 v_1 = homogeneous_to_cartesian(transform * vec4{res->vertices[1][0], res->vertices[1][1], res->vertices[1][2], 1});
-        // vec3 v_2 = homogeneous_to_cartesian(transform * vec4{res->vertices[2][0], res->vertices[2][1], res->vertices[2][2], 1});
-
         vec3 v_0{res->vertices[0][0], res->vertices[0][1], res->vertices[0][2]};
         vec3 v_1{res->vertices[1][0], res->vertices[1][1], res->vertices[1][2]};
         vec3 v_2{res->vertices[2][0], res->vertices[2][1], res->vertices[2][2]};
 
         mesh.push_triangle({v_0, v_1, v_2});
-
-        //*it++ = shapes::triangle(mat_idx, {v_0, v_1, v_2});
     }
 
     mesh.transform(transform);
@@ -83,8 +79,8 @@ static auto get_scene_test() -> scene {
     vec3 left_obj_center{-1.3, -2.25 + obj_radius, 8.5};
     vec3 right_obj_center{1.3, -2.25 + obj_radius, 7.3};
 
-    //scene.append_shape(shapes::sphere(midx_mirror, left_obj_center, obj_radius));
-    //scene.append_shape(shapes::sphere(midx_glass, right_obj_center, obj_radius));
+    // scene.append_shape(shapes::sphere(midx_mirror, left_obj_center, obj_radius));
+    // scene.append_shape(shapes::sphere(midx_glass, right_obj_center, obj_radius));
     scene.append_shape(shapes::disc(midx_white_light, {0, 2.2499, 7.5}, {0, -1, 0}, 0.71));
 
     // rgb lights
@@ -97,22 +93,18 @@ static auto get_scene_test() -> scene {
     // scene.append_shape(shapes::box(midx_magdonal, {{-2.5, -2.25, 5}, {-0.5, -1.25, 7}}));
     // scene.append_shape(shapes::triangle(midx_green, {{left_obj_center + vec3{0, 0 - obj_radius, -2}, left_obj_center + vec3{1, 0 - obj_radius, -2}, left_obj_center + vec3{0, 1 - obj_radius, -2}}}));
 
-    homogenous_transformation<real> teapot_transformation_0{
-      .rotation{std::numbers::pi_v<real> * -90 / 180, 0, std::numbers::pi_v<real> * 135 / 180},
-      .scale{0.1666, 0.1666, 0.1666},
-      .translation{right_obj_center[0], right_obj_center[1] - obj_radius * 0.75f, right_obj_center[2]},
-    };
+    mat4x4 teapot_mat_0 =
+      mat4x4::translate(right_obj_center[0], right_obj_center[1] - obj_radius * 0.75f, right_obj_center[2]) *
+      mat4x4::scale(0.1666, 0.1666, 0.1666) *
+      mat4x4::rotate(std::numbers::pi_v<real> * -90 / 180, 0, std::numbers::pi_v<real> * 135 / 180);
 
-    mat4x4 teapot_mat_0 = homogeneous_transformation_matrix<real, matrix>(teapot_transformation_0);
     scene.append_shape(read_stl<u16>("Utah_teapot_(solid).stl", midx_glass, teapot_mat_0));
 
-    homogenous_transformation<real> teapot_transformation_1{
-      .rotation{std::numbers::pi_v<real> * -90 / 180, 0, std::numbers::pi_v<real> * 45 / 180},
-      .scale{0.1666, 0.1666, 0.1666},
-      .translation{left_obj_center[0], left_obj_center[1] - obj_radius * 0.75f, left_obj_center[2]},
-    };
+    mat4x4 teapot_mat_1 =
+      mat4x4::translate(left_obj_center[0], left_obj_center[1] - obj_radius * 0.75f, left_obj_center[2]) *
+      mat4x4::scale(0.1666, 0.1666, 0.1666) *
+      mat4x4::rotate(std::numbers::pi_v<real> * -90 / 180, 0, std::numbers::pi_v<real> * 45 / 180);
 
-    mat4x4 teapot_mat_1 = homogeneous_transformation_matrix<real, matrix>(teapot_transformation_1);
     scene.append_shape(read_stl<u16>("Utah_teapot_(solid).stl", midx_mirror, teapot_mat_1));
 
     std::vector<unbound_shape> unbound_shapes{
@@ -134,11 +126,24 @@ auto sfml_program::camera_settings::operator()(sf::Vector2u window_dimensions) c
 
     if (type == camera_type::pinhole) {
         vec3 rad_rotation = rotation / 180 * std::numbers::pi_v<real>;
-        mat3x3 mat = rotation_matrix<real, matrix>(rotation[0], rotation[1], rotation[2]);
+        mat3x3 mat = mat3x3::rotate(rotation[0], rotation[1], rotation[2]);
 
         return std::make_shared<pinhole_camera>(center, dimensions, fov / 180 * std::numbers::pi_v<real>, mat);
-    } else {
+    } else if (type == camera_type::environment) {
         return std::make_shared<environment_camera>(center, dimensions);
+    } else if (type == camera_type::orthographic_raw) {
+        return std::make_shared<orthographic_camera>(dimensions, center, left, right, bottom, top, near, far, rotation, ray_rotation);
+    } else if (type == camera_type::frustum_raw) {
+        return std::make_shared<frustum_camera>(dimensions, left, right, bottom, top, near, far);
+    } else if (type == camera_type::orthographic) {
+        vec2 lr = vec2(-0.5, 0.5) * physical_width;
+        vec2 bt = vec2(-0.5, 0.5) * physical_width * dimensions[1] / dimensions[0];
+
+        return std::make_shared<orthographic_camera>(dimensions, center, lr[0], lr[1], bt[0], bt[1], near, far, rotation, ray_rotation);
+    } else if (type == camera_type::frustum) {
+        return std::make_shared<frustum_camera>(dimensions, left, right, bottom, top, near, far);
+    } else {
+        std::unreachable();
     }
 }
 
@@ -270,7 +275,7 @@ void sfml_program::load_fonts() {
     ImGuiIO& io = ImGui::GetIO();
     m_fonts["ImGUI Default"] = io.Fonts->AddFontDefault();
     m_fonts["Proggy Clean (TTF)"] = io.Fonts->AddFontFromFileTTF("ProggyClean.ttf", 13);
-    m_fonts["Proggy Tiny (TTF)"] = io.Fonts->AddFontFromFileTTF("ProggyTiny.ttf", 13);
+    // m_fonts["Proggy Tiny (TTF)"] = io.Fonts->AddFontFromFileTTF("ProggyTiny.ttf", 13);
     m_fonts["Droid Sans (TTF)"] = io.Fonts->AddFontFromFileTTF("DroidSans.ttf", 13);
     m_fonts["Karla Regular (TTF)"] = io.Fonts->AddFontFromFileTTF("Karla-Regular.ttf", 13);
     m_fonts["Cousine Regular (TTF)"] = io.Fonts->AddFontFromFileTTF("Cousine-Regular.ttf", 13);
@@ -445,6 +450,52 @@ void sfml_program::gui_menu_bar() {
     }
 }
 
+auto sfml_program::gui_render_camera_editor() -> bool {
+    bool invalidated = false;
+
+    auto rotation = [&](auto& rotation, std::string_view id_base) {
+        ImGui::PushID(fmt::format("{}_1", id_base).c_str());
+        ImGui::PushID(fmt::format("{}_2", id_base).c_str());
+        ImGui::PushID(fmt::format("{}_0", id_base).c_str());
+        invalidated |= imgui::slider_angle<real>("Pitch", rotation[0], -180, 180);
+        ImGui::PopID();
+        invalidated |= imgui::slider_angle<real>("Yaw", rotation[1], -180, 180);
+        ImGui::PopID();
+        invalidated |= imgui::slider_angle<real>("Roll", rotation[2]);
+        ImGui::PopID();
+    };
+
+    if (camera_type type = m_configuration.camera_settings.type; type == camera_type::pinhole) {
+        invalidated |= imgui::slider<real>("FOV", m_configuration.camera_settings.fov, 0, 180);
+        rotation(m_configuration.camera_settings.rotation, "camera_rot_sliders");
+    } else if (type == camera_type::environment) {
+        //
+    } else if (type == camera_type::orthographic_raw || type == camera_type::frustum_raw) {
+        invalidated |= imgui::input_scalar<real>("Left", m_configuration.camera_settings.left);
+        invalidated |= imgui::input_scalar<real>("Right", m_configuration.camera_settings.right);
+        invalidated |= imgui::input_scalar<real>("Top", m_configuration.camera_settings.top);
+        invalidated |= imgui::input_scalar<real>("Bottom", m_configuration.camera_settings.bottom);
+        invalidated |= imgui::input_scalar<real>("Near", m_configuration.camera_settings.near);
+        invalidated |= imgui::input_scalar<real>("Far", m_configuration.camera_settings.far);
+        ImGui::Text("Viewing Plane Rotation");
+        rotation(m_configuration.camera_settings.rotation, "viewing_plane_rot_sliders");
+        ImGui::Text("Ray Generation Rotation");
+        rotation(m_configuration.camera_settings.ray_rotation, "ray_gen_rot_sliders");
+    } else if (type == camera_type::orthographic) {
+        invalidated |= imgui::input_scalar<real>("Physical Width", m_configuration.camera_settings.physical_width);
+        ImGui::Text("Viewing Plane Rotation");
+        rotation(m_configuration.camera_settings.rotation, "viewing_plane_rot_sliders");
+        ImGui::Text("Ray Generation Rotation");
+        rotation(m_configuration.camera_settings.ray_rotation, "ray_gen_rot_sliders");
+    } else if (type == camera_type::frustum) {
+        //
+    } else {
+        std::unreachable();
+    }
+
+    return invalidated;
+}
+
 void sfml_program::gui_render_settings() {
     static constexpr const char* integrator_names[]{
       "cosine-weighted albedo + emittance (useful for previews)",
@@ -453,8 +504,12 @@ void sfml_program::gui_render_settings() {
     };
 
     static constexpr const char* camera_names[]{
-      "pinhole (fov, pos, rot)",
-      "environment (pos)",
+      "pinhole",
+      "environment",
+      "orthographic (raw)",
+      "frustum (raw)",
+      "orthographic",
+      "frustum",
     };
 
     ImGui::BeginGroup();
@@ -475,29 +530,21 @@ void sfml_program::gui_render_settings() {
         ImGui::TextColored(ImVec4(255, 0, 0, 255), "Render in progress...");
     }
 
-    if (ImGui::CollapsingHeader("Integrator Settings")) {
-        ImGui::ListBox("Integrator", &reinterpret_cast<int&>(m_configuration.integrator), integrator_names, std::size(integrator_names));
-        // ImGui::SetNextItemWidth(64);
+    if (ImGui::TreeNode("Integrator Settings")) {
+        ImGui::Combo("Integrator", &reinterpret_cast<int&>(m_configuration.integrator), integrator_names, std::size(integrator_names));
         imgui::input_scalar("Samples per Pixel", m_configuration.integrator_settings.samples);
 
-        ImGui::Spacing();
+        ImGui::TreePop();
     }
 
-    if (ImGui::CollapsingHeader("Camera Settings")) {
-        ImGui::ListBox("Camera Type", &reinterpret_cast<int&>(m_configuration.camera_settings.type), camera_names, std::size(camera_names));
-        // ImGui::SetNextItemWidth(64);
-        m_invalidated |= imgui::slider<real>("FOV", m_configuration.camera_settings.fov, 0, 180);
+    if (ImGui::TreeNode("Camera Settings")) {
+        m_invalidated |= ImGui::Combo("Camera Type", &reinterpret_cast<int&>(m_configuration.camera_settings.type), camera_names, std::size(camera_names));
 
-        // ImGui::SetNextItemWidth(64 * 3);
+        m_invalidated |= gui_render_camera_editor();
         m_invalidated |= imgui::input_scalar_n<real>("Camera Position", {m_configuration.camera_settings.center.data(), 3});
         // ImGui::SetNextItemWidth(64 * 3);
-        m_invalidated |= imgui::slider_angle<real>("Pitch", m_configuration.camera_settings.rotation[0], -180, 180);
-        m_invalidated |= imgui::slider_angle<real>("Yaw", m_configuration.camera_settings.rotation[1], -180, 180);
-        m_invalidated |= imgui::slider_angle<real>("Roll", m_configuration.camera_settings.rotation[2]);
 
-        ImGui::Spacing();
-
-        if (ImGui::CollapsingHeader("Movement")) {
+        if (ImGui::TreeNode("Movement")) {
             imgui::input_scalar("movement step size", m_ui_movement_step);
 
             enum class direction {
@@ -541,8 +588,10 @@ void sfml_program::gui_render_settings() {
                 ImGui::EndTable();
             }
 
-            ImGui::Spacing();
+            ImGui::TreePop();
         }
+
+        ImGui::TreePop();
     }
 
     //ImGui::PopItemWidth();
