@@ -21,7 +21,7 @@
 namespace trc {
 
 template<std::unsigned_integral IndexType = u32>
-static auto read_stl(std::filesystem::path filename, u32 mat_idx, mat4x4 transform = identity_matrix<real, 4, matrix>()) -> shapes::mesh<IndexType> {
+static auto read_stl(std::filesystem::path filename, u32 mat_idx, mat4x4 transform = mat4x4::identity()) -> shapes::mesh<IndexType> {
     std::ifstream stl_file(filename);
     stf::trilang::stl::binary_stream triangle_stream{std::istreambuf_iterator<char>(stl_file), std::istreambuf_iterator<char>()};
 
@@ -150,10 +150,10 @@ auto sfml_program::camera_settings::operator()(sf::Vector2u window_dimensions) c
 sfml_program::sfml_program()
     : m_scene(std::make_shared<scene>(std::move(get_scene_test())))
     , m_window(sf::VideoMode({1280, 720}), "tracer")
-    , m_image(m_configuration.resolution.x, m_configuration.resolution.y)
+    , m_image(m_configuration.m_resolution.x, m_configuration.m_resolution.y)
     , m_render_thread([this] { render_worker(); }) {
 
-    m_sf_image.create(m_configuration.resolution);
+    m_sf_image.create(m_configuration.m_resolution);
 
     m_imgui_context = ImGui::CreateContext();
     ImGui::SetCurrentContext(m_imgui_context);
@@ -288,19 +288,19 @@ void sfml_program::load_fonts() {
 auto sfml_program::recreate_images() -> bool {
     bool inconsistent = false;
 
-    inconsistent |= m_sf_image.getSize() != m_configuration.resolution;
-    inconsistent |= m_image.width() != m_configuration.resolution.x;
-    inconsistent |= m_image.height() != m_configuration.resolution.y;
-    inconsistent |= m_qoi_image.width() != m_configuration.resolution.x;
-    inconsistent |= m_qoi_image.height() != m_configuration.resolution.y;
+    inconsistent |= m_sf_image.getSize() != m_configuration.m_resolution;
+    inconsistent |= m_image.width() != m_configuration.m_resolution.x;
+    inconsistent |= m_image.height() != m_configuration.m_resolution.y;
+    inconsistent |= m_qoi_image.width() != m_configuration.m_resolution.x;
+    inconsistent |= m_qoi_image.height() != m_configuration.m_resolution.y;
 
     if (!inconsistent) {
         return false;
     }
 
-    m_image.create(m_configuration.resolution.x, m_configuration.resolution.y);
-    m_qoi_image.create(m_configuration.resolution.x, m_configuration.resolution.y);
-    m_sf_image.create(m_configuration.resolution);
+    m_image.create(m_configuration.m_resolution.x, m_configuration.m_resolution.y);
+    m_qoi_image.create(m_configuration.m_resolution.x, m_configuration.m_resolution.y);
+    m_sf_image.create(m_configuration.m_resolution);
 
     return true;
 }
@@ -338,10 +338,10 @@ void sfml_program::render_worker() {
         spdlog::info("render request received");
         m_ongoing_render.store(true, std::memory_order::relaxed);
 
-        std::shared_ptr<camera> camera = request.camera_settings(sf::Vector2u(m_image.width(), m_image.height()));
+        std::shared_ptr<camera> camera = request.m_camera_settings(sf::Vector2u(m_image.width(), m_image.height()));
         std::shared_ptr<integrator> integrator = nullptr;
 
-        switch (m_configuration.integrator) {
+        switch (m_configuration.m_integrator) {
             case integrator_type::cosine_albedo:
                 integrator = std::make_shared<cosine_albedo_integrator>(std::move(camera), m_scene);
                 break;
@@ -361,7 +361,7 @@ void sfml_program::render_worker() {
         image_adapter_tee images_tee{adapted_qoi_image, srgb_sf_image, m_image};
 
         std::chrono::time_point tp_0 = std::chrono::system_clock::now();
-        integrator->integrate(images_tee, request.integrator_settings, gen);
+        integrator->integrate(images_tee, request.m_integrator_settings, gen);
         std::chrono::time_point tp_1 = std::chrono::system_clock::now();
 
         spdlog::info("render completed in {} seconds", std::chrono::duration_cast<std::chrono::microseconds>(tp_1 - tp_0).count() / 1000000.);
@@ -465,28 +465,28 @@ auto sfml_program::gui_render_camera_editor() -> bool {
         ImGui::PopID();
     };
 
-    if (camera_type type = m_configuration.camera_settings.type; type == camera_type::pinhole) {
-        invalidated |= imgui::slider<real>("FOV", m_configuration.camera_settings.fov, 0, 180);
-        rotation(m_configuration.camera_settings.rotation, "camera_rot_sliders");
+    if (camera_type type = m_configuration.m_camera_settings.type; type == camera_type::pinhole) {
+        invalidated |= imgui::slider<real>("FOV", m_configuration.m_camera_settings.fov, 0, 180);
+        rotation(m_configuration.m_camera_settings.rotation, "camera_rot_sliders");
     } else if (type == camera_type::environment) {
         //
     } else if (type == camera_type::orthographic_raw || type == camera_type::frustum_raw) {
-        invalidated |= imgui::input_scalar<real>("Left", m_configuration.camera_settings.left);
-        invalidated |= imgui::input_scalar<real>("Right", m_configuration.camera_settings.right);
-        invalidated |= imgui::input_scalar<real>("Top", m_configuration.camera_settings.top);
-        invalidated |= imgui::input_scalar<real>("Bottom", m_configuration.camera_settings.bottom);
-        invalidated |= imgui::input_scalar<real>("Near", m_configuration.camera_settings.near);
-        invalidated |= imgui::input_scalar<real>("Far", m_configuration.camera_settings.far);
+        invalidated |= imgui::input_scalar<real>("Left", m_configuration.m_camera_settings.left);
+        invalidated |= imgui::input_scalar<real>("Right", m_configuration.m_camera_settings.right);
+        invalidated |= imgui::input_scalar<real>("Top", m_configuration.m_camera_settings.top);
+        invalidated |= imgui::input_scalar<real>("Bottom", m_configuration.m_camera_settings.bottom);
+        invalidated |= imgui::input_scalar<real>("Near", m_configuration.m_camera_settings.near);
+        invalidated |= imgui::input_scalar<real>("Far", m_configuration.m_camera_settings.far);
         ImGui::Text("Viewing Plane Rotation");
-        rotation(m_configuration.camera_settings.rotation, "viewing_plane_rot_sliders");
+        rotation(m_configuration.m_camera_settings.rotation, "viewing_plane_rot_sliders");
         ImGui::Text("Ray Generation Rotation");
-        rotation(m_configuration.camera_settings.ray_rotation, "ray_gen_rot_sliders");
+        rotation(m_configuration.m_camera_settings.ray_rotation, "ray_gen_rot_sliders");
     } else if (type == camera_type::orthographic) {
-        invalidated |= imgui::input_scalar<real>("Physical Width", m_configuration.camera_settings.physical_width);
+        invalidated |= imgui::input_scalar<real>("Physical Width", m_configuration.m_camera_settings.physical_width);
         ImGui::Text("Viewing Plane Rotation");
-        rotation(m_configuration.camera_settings.rotation, "viewing_plane_rot_sliders");
+        rotation(m_configuration.m_camera_settings.rotation, "viewing_plane_rot_sliders");
         ImGui::Text("Ray Generation Rotation");
-        rotation(m_configuration.camera_settings.ray_rotation, "ray_gen_rot_sliders");
+        rotation(m_configuration.m_camera_settings.ray_rotation, "ray_gen_rot_sliders");
     } else if (type == camera_type::frustum) {
         //
     } else {
@@ -517,7 +517,7 @@ void sfml_program::gui_render_settings() {
     //ImGui::PushItemWidth(-ImGui::GetWindowWidth() * 0.75f);
 
     // ImGui::SetNextItemWidth(64 * 2);
-    imgui::input_scalar_n<unsigned>("Resolution", {&m_configuration.resolution.x, 2});
+    imgui::input_scalar_n<unsigned>("Resolution", {&m_configuration.m_resolution.x, 2});
 
     ImGui::Checkbox("Render upon invalidation", &m_ui_render_on_invalidate);
 
@@ -531,17 +531,17 @@ void sfml_program::gui_render_settings() {
     }
 
     if (ImGui::TreeNode("Integrator Settings")) {
-        ImGui::Combo("Integrator", &reinterpret_cast<int&>(m_configuration.integrator), integrator_names, std::size(integrator_names));
-        imgui::input_scalar("Samples per Pixel", m_configuration.integrator_settings.samples);
+        ImGui::Combo("Integrator", &reinterpret_cast<int&>(m_configuration.m_integrator), integrator_names, std::size(integrator_names));
+        imgui::input_scalar("Samples per Pixel", m_configuration.m_integrator_settings.samples);
 
         ImGui::TreePop();
     }
 
     if (ImGui::TreeNode("Camera Settings")) {
-        m_invalidated |= ImGui::Combo("Camera Type", &reinterpret_cast<int&>(m_configuration.camera_settings.type), camera_names, std::size(camera_names));
+        m_invalidated |= ImGui::Combo("Camera Type", &reinterpret_cast<int&>(m_configuration.m_camera_settings.type), camera_names, std::size(camera_names));
 
         m_invalidated |= gui_render_camera_editor();
-        m_invalidated |= imgui::input_scalar_n<real>("Camera Position", {m_configuration.camera_settings.center.data(), 3});
+        m_invalidated |= imgui::input_scalar_n<real>("Camera Position", {m_configuration.m_camera_settings.center.data(), 3});
         // ImGui::SetNextItemWidth(64 * 3);
 
         if (ImGui::TreeNode("Movement")) {

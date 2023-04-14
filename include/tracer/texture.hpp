@@ -20,7 +20,7 @@ enum class scaling_method {
 struct texture {
     constexpr texture() = default;
 
-    constexpr texture(std::string_view filename, wrapping_mode wrapping_mode, scaling_method scaling_method)
+    texture(std::string_view filename, wrapping_mode wrapping_mode, scaling_method scaling_method)
         : texture() {
         from_file(filename, wrapping_mode, scaling_method);
     }

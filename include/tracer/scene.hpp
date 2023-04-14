@@ -83,7 +83,7 @@ struct scene {
         return t;
     }
 
-    constexpr void append_shape(bound_shape shape, usize split_threshold = 8, usize split_depth = 12) {
+    void append_shape(bound_shape shape, usize split_threshold = 8, usize split_depth = 12) {
         m_bound_shapes.emplace_back(std::move(shape));
 
         append_if_over_threshold(split_threshold, split_depth);
@@ -93,7 +93,7 @@ struct scene {
         m_unbound_shapes.emplace_back(std::move(shape));
     }
 
-    constexpr void append_shapes(std::vector<bound_shape> shapes, usize split_threshold = 8, usize split_depth = 12) {
+    void append_shapes(std::vector<bound_shape> shapes, usize split_threshold = 8, usize split_depth = 12) {
         m_bound_shapes.reserve(m_bound_shapes.size() + shapes.size());
         std::copy(shapes.begin(), shapes.end(), std::back_inserter(m_bound_shapes));
 
@@ -124,7 +124,7 @@ struct scene {
     std::vector<unbound_shape> m_unbound_shapes{};
 
 private:
-    constexpr void append_if_over_threshold(usize split_threshold, usize split_depth) {
+    void append_if_over_threshold(usize split_threshold, usize split_depth) {
         if (m_bvh == nullptr) [[unlikely]] {
             // throw?
             return;

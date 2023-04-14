@@ -5,7 +5,7 @@
 namespace trc {
 
 struct pinhole_camera : camera {
-    constexpr pinhole_camera(vec3 center, vec2 dimensions, real fov, mat3x3 transform = identity_matrix<real, 3, matrix>()) noexcept
+    constexpr pinhole_camera(vec3 center, vec2 dimensions, real fov, mat3x3 transform = mat3x3::identity()) noexcept
         : camera(dimensions)
         , m_center(center)
         , m_transform(transform) {

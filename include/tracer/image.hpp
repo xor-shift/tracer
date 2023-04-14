@@ -106,10 +106,10 @@ struct image_adapter_sfml : image_like {
         : m_image(image) {}
 
 
-    virtual constexpr auto width() const -> usize override { return m_image.getSize().x; }
-    virtual constexpr auto height() const -> usize override { return m_image.getSize().y; }
+    virtual auto width() const -> usize override { return m_image.getSize().x; }
+    virtual auto height() const -> usize override { return m_image.getSize().y; }
 
-    virtual constexpr void set(usize x, usize y, color c) override {
+    virtual void set(usize x, usize y, color c) override {
         c = round(clamp(c, 0, 1) * 255);
 
         sf::Color sf_color{
@@ -122,7 +122,7 @@ struct image_adapter_sfml : image_like {
         m_image.setPixel(sf::Vector2u(x, y), sf_color);
     }
 
-    virtual constexpr auto get(usize x, usize y) const -> color override {
+    virtual auto get(usize x, usize y) const -> color override {
         sf::Color sf_color = m_image.getPixel(sf::Vector2u(x, y));
         color c{sf_color.r, sf_color.g, sf_color.b};
         return c / 255;

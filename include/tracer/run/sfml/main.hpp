@@ -78,21 +78,21 @@ private:
     };
 
     struct render_configuration {
-        sf::Vector2u resolution;
+        sf::Vector2u m_resolution;
 
-        integrator_type integrator;
-        integration_settings integrator_settings;
+        integrator_type m_integrator;
+        integration_settings m_integrator_settings;
 
-        camera_settings camera_settings;
+        camera_settings m_camera_settings;
     };
 
     render_configuration m_configuration{
-      .resolution = sf::Vector2u{400, 300},
-      .integrator = integrator_type::cosine_albedo,
-      .integrator_settings = {
+      .m_resolution = sf::Vector2u{400, 300},
+      .m_integrator = integrator_type::cosine_albedo,
+      .m_integrator_settings = {
         .samples = 1,
       },
-      .camera_settings = {},
+      .m_camera_settings = {},
     };
 
     std::shared_ptr<scene> m_scene = nullptr;

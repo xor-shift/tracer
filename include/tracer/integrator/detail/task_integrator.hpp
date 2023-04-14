@@ -34,11 +34,11 @@ struct default_task_generator {
         return m_x_tasks * m_y_tasks;
     }
 
-    constexpr void reset() {
+    void reset() {
         m_next_task.store(0, std::memory_order::seq_cst);
     }
 
-    constexpr auto next_task() -> std::optional<payload_type> {
+    auto next_task() -> std::optional<payload_type> {
         usize task_no = m_next_task.fetch_add(1, std::memory_order::seq_cst);
         if (task_no >= n_tasks()) {
             return std::nullopt;

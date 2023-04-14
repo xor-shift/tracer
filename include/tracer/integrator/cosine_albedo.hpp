@@ -9,7 +9,7 @@ struct cosine_albedo_integrator : detail::pixel_integrator {
         : pixel_integrator(std::move(camera), std::move(scene)) {}
 
 protected:
-    virtual constexpr auto kernel(vec2 xy, default_rng& gen) noexcept -> color final override {
+    virtual auto kernel(vec2 xy, default_rng& gen) noexcept -> color final override {
         ray ray = m_camera->generate_ray(xy, gen);
 
         auto isect_res = m_scene->intersect(ray);
