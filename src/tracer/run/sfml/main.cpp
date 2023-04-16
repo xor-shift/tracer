@@ -1,7 +1,5 @@
 #include <tracer/run/sfml/main.hpp>
 
-#include <stuff/trilang/stl.hpp>
-
 #include <tracer/bvh/tree.hpp>
 #include <tracer/camera/envrionment.hpp>
 #include <tracer/camera/orthographic.hpp>
@@ -11,6 +9,8 @@
 #include <tracer/imgui.hpp>
 #include <tracer/integrator/cosine_albedo.hpp>
 #include <tracer/integrator/unidirectional_pt.hpp>
+#include <tracer/io/ply.hpp>
+#include <tracer/io/stl.hpp>
 #include <tracer/scene.hpp>
 
 #include <SFML/Graphics.hpp>
@@ -23,10 +23,7 @@ namespace trc {
 template<std::unsigned_integral IndexType = u32>
 static auto read_stl(std::filesystem::path filename, u32 mat_idx, mat4x4 transform = mat4x4::identity()) -> shapes::mesh<IndexType> {
     std::ifstream stl_file(filename);
-    stf::trilang::stl::binary_stream triangle_stream{std::istreambuf_iterator<char>(stl_file), std::istreambuf_iterator<char>()};
-
-    //std::vector<bound_shape> shapes{};
-    //auto it = std::back_inserter(shapes);
+    trc::io::stl::binary_stream triangle_stream{std::istreambuf_iterator<char>(stl_file), std::istreambuf_iterator<char>()};
 
     shapes::mesh<IndexType> mesh{mat_idx};
 
@@ -36,12 +33,46 @@ static auto read_stl(std::filesystem::path filename, u32 mat_idx, mat4x4 transfo
             break;
         }
 
-        vec3 v_0{res->vertices[0][0], res->vertices[0][1], res->vertices[0][2]};
-        vec3 v_1{res->vertices[1][0], res->vertices[1][1], res->vertices[1][2]};
-        vec3 v_2{res->vertices[2][0], res->vertices[2][1], res->vertices[2][2]};
-
-        mesh.push_triangle({v_0, v_1, v_2});
+        mesh.push_triangle({res->vertices[0], res->vertices[1], res->vertices[2]});
     }
+
+    mesh.transform(transform);
+    mesh.finish_construction();
+
+    return mesh;
+}
+
+template<std::unsigned_integral IndexType = u32>
+static auto read_ply(std::filesystem::path filename, u32 mat_idx, mat4x4 transform = mat4x4::identity()) -> shapes::mesh<IndexType> {
+    std::ifstream ifs("bun_zipper.ply");
+    auto res_0 = io::ply::read_header(ifs);
+
+    shapes::mesh<IndexType> mesh{mat_idx};
+
+    auto get_real = []<typename T>(T const& v) -> real {
+        io::ply::primitive p_v;
+        if constexpr (std::is_same_v<T, io::ply::data>) {
+            p_v = std::get<io::ply::primitive>(v);
+        } else if constexpr (std::is_same_v<T, io::ply::primitive>) {
+            p_v = v;
+        } else {
+            std::unreachable();
+        }
+        return std::visit([](auto v) -> real { return static_cast<real>(v); }, p_v);
+    };
+
+    auto res_1 = io::ply::read_element(res_0->elements[0], ifs, [&](std::vector<io::ply::data> args) {
+        mesh.push_vertex(vec3(get_real(args[0]), get_real(args[1]), get_real(args[2])));
+    });
+
+    auto res_2 = io::ply::read_element(res_0->elements[1], ifs, [&](std::vector<io::ply::data> args) {
+        io::ply::list list = std::get<io::ply::list>(args[0]);
+        mesh.push_triangle(std::array<IndexType, 3>{
+          static_cast<IndexType>(std::get<int>(list[0])),
+          static_cast<IndexType>(std::get<int>(list[1])),
+          static_cast<IndexType>(std::get<int>(list[2])),
+        });
+    });
 
     mesh.transform(transform);
     mesh.finish_construction();
@@ -81,7 +112,9 @@ static auto get_scene_test() -> scene {
 
     // scene.append_shape(shapes::sphere(midx_mirror, left_obj_center, obj_radius));
     // scene.append_shape(shapes::sphere(midx_glass, right_obj_center, obj_radius));
-    scene.append_shape(shapes::disc(midx_white_light, {0, 2.2499, 7.5}, {0, -1, 0}, 0.71));
+    // scene.append_shape(shapes::disc(midx_white_light, {0, 2.2499, 7.5}, {0, -1, 0}, 0.71));
+    scene.append_shape(shapes::disc(midx_white_light, {-1, 0.2499, 7.5}, normalize(vec3{1, -1, 0}), 0.71));
+    scene.append_shape(shapes::disc(midx_white, {-1, 0.25001, 7.5}, normalize(vec3{1, -1, 0}), 0.72));
 
     // rgb lights
     /*scene.append_shape(shapes::disc(midx_red_light, {-0.9, 2.2499, 8}, {0, -1, 0}, 0.71));
@@ -98,14 +131,16 @@ static auto get_scene_test() -> scene {
       mat4x4::scale(0.1666, 0.1666, 0.1666) *
       mat4x4::rotate(std::numbers::pi_v<real> * -90 / 180, 0, std::numbers::pi_v<real> * 135 / 180);
 
-    scene.append_shape(read_stl<u16>("Utah_teapot_(solid).stl", midx_glass, teapot_mat_0));
+    //scene.append_shape(read_stl<u16>("Utah_teapot_(solid).stl", midx_glass, teapot_mat_0));
 
     mat4x4 teapot_mat_1 =
       mat4x4::translate(left_obj_center[0], left_obj_center[1] - obj_radius * 0.75f, left_obj_center[2]) *
       mat4x4::scale(0.1666, 0.1666, 0.1666) *
       mat4x4::rotate(std::numbers::pi_v<real> * -90 / 180, 0, std::numbers::pi_v<real> * 45 / 180);
 
-    scene.append_shape(read_stl<u16>("Utah_teapot_(solid).stl", midx_mirror, teapot_mat_1));
+    //scene.append_shape(read_stl<u16>("Utah_teapot_(solid).stl", midx_mirror, teapot_mat_1));
+
+    scene.append_shape(read_ply<u32>("", midx_glass, mat4x4::translate(0, -2.75, 8) * mat4x4::scale(15, 15, 15) * mat4x4::rotate(0, std::numbers::pi_v<real>, 0)));
 
     std::vector<unbound_shape> unbound_shapes{
       shapes::plane(midx_red, {-2.8, 0, 10}, {1, 0, 0}),   // left

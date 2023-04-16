@@ -106,6 +106,10 @@ struct scene {
 
     template<typename BVHType>
     void reconstruct_bvh(usize split_depth = 12) {
+        if (m_bound_shapes.empty()) {
+            return;
+        }
+
         if (m_bvh != nullptr) {
             std::vector<bound_shape> existing_shapes = m_bvh->deconstruct_tree();
             m_bound_shapes.reserve(m_bound_shapes.size() + existing_shapes.size());

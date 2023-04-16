@@ -145,7 +145,7 @@ struct generic_bvh_node {
             }
 
             /*for (auto const& shape : shapes_span) {
-                vec3 shape_center = VARIANT_CALL(shape, center);
+                vec3 shape_center = std::invoke(std::forward<CenterFn>(center_fn), shape);
                 real cur_heuristic = heuristic(axis, shape_center[axis]);
 
                 if (best_sah > cur_heuristic) {
@@ -171,7 +171,11 @@ struct generic_bvh_node {
 
     template<typename CenterFn, typename BoundsFn>
     constexpr auto split(std::span<ShapeT> all_shapes, generic_bvh_node& left_candidate, generic_bvh_node& right_candidate, CenterFn&& center_fn, BoundsFn&& bounds_fn) -> bool {
+#ifdef NDEBUG
         auto res = partition_sah<CenterFn, BoundsFn>(all_shapes, std::forward<CenterFn>(center_fn), std::forward<BoundsFn>(bounds_fn));
+#else
+        auto res = partition_longest_axis<CenterFn>(all_shapes, std::forward<CenterFn>(center_fn));
+#endif
         if (!res) {
             return false;
         }
@@ -185,12 +189,16 @@ struct generic_bvh_node {
     }
 
     constexpr auto bound_check(ray const& ray) const -> bool {
+        if (empty()) {
+            return false;
+        }
+
         return check_bounds_intersection(ray, m_bounds);
     }
 
     template<typename IntersectFn>
     constexpr auto intersect(std::span<const ShapeT> all_shapes, ray const& ray, pixel_statistics& stats, real best_t, IntersectFn&& intersect_fn) const -> std::optional<intersection> {
-        if (!bound_check(ray)) {
+        if (empty() || !bound_check(ray)) {
             return std::nullopt;
         }
 
@@ -217,7 +225,7 @@ struct generic_bvh_node {
     }
 
     constexpr auto intersects(std::span<const ShapeT> all_shapes, ray const& ray) const -> bool {
-        return !!intersect(all_shapes, ray);
+        return !empty() && !!intersect(all_shapes, ray);
     }
 
     constexpr auto is_leaf() const -> bool { return m_is_leaf; }
@@ -297,7 +305,7 @@ struct generic_bvh {
 
         split_at<CenterFn, BoundsFn>(0, std::forward<CenterFn>(center_fn), std::forward<BoundsFn>(bounds_fn));
 
-        while (last_layer_is_vacant()) {
+        while (last_layer_is_vacant() && !m_nodes.empty()) {
             trim_last_layer();
         }
 
@@ -337,6 +345,10 @@ struct generic_bvh {
     }
 
     constexpr auto last_layer_is_vacant() const -> bool {
+        if (m_nodes.empty()) {
+            return false;
+        }
+
         for (usize i = m_nodes.size() / 2; i < m_nodes.size(); i++) {
             if (!m_nodes[i].empty()) {
                 return false;
@@ -347,7 +359,7 @@ struct generic_bvh {
 
     constexpr void trim_last_layer() {
         --m_depth;
-        m_nodes.resize(m_nodes.size() / 2 - 1);
+        m_nodes.resize(m_nodes.size() / 2);
         m_nodes.shrink_to_fit();
     }
 
